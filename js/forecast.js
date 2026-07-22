@@ -546,6 +546,16 @@ const TahminModulu = (() => {
                 case 'regression': tahminSonuc = tahminRegression(trafoId, egitimSeti, 1); break;
                 case 'persistence': tahminSonuc = tahminPersistence(egitimSeti, 1); break;
                 case 'ortalama': tahminSonuc = tahminOrtalama(egitimSeti, 1); break;
+                case 'gecenAy': {
+                    const d = VeriModulu.parseDate(egitimSeti[0].tarih);
+                    const ayNum = d.getMonth() + 1;
+                    const yilNum = d.getFullYear();
+                    const gecenAy = ayNum === 1 ? 12 : ayNum - 1;
+                    const gecenYil = ayNum === 1 ? yilNum - 1 : yilNum;
+                    const gecenAyVerileri = VeriModulu.getAylikVeriler(trafoId, gecenYil, gecenAy);
+                    tahminSonuc = tahminGecenAyEmsal(egitimSeti, gecenAyVerileri, 1);
+                    break;
+                }
                 default: tahminSonuc = tahminEnsemble(trafoId, egitimSeti, 1);
             }
 

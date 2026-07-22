@@ -37,6 +37,10 @@ const SenaryoModulu = (() => {
     // ─── Senaryo Uygulama ───
     // Tahmin sonucundaki verilere müdahale parametreleri uygulanır.
     function senaryoUygula(tumVeriler, senaryoTuru, baslangicTarihi, miktar) {
+        const isHourly = tumVeriler && tumVeriler.length > 0 && typeof tumVeriler[0].tarih === 'string' && tumVeriler[0].tarih.includes(':');
+        // Formdan girilen miktar günlük (kVArh/gün veya kWh/gün) olduğu için saatlik veride her saate saatlik payı (miktar / 24) uygulanır.
+        const adimMiktar = isHourly ? (miktar / 24) : miktar;
+
         return tumVeriler.map((v) => {
             const yeniVeri = { ...v };
 
@@ -51,13 +55,13 @@ const SenaryoModulu = (() => {
                     case 'reaktor':
                     case 'kabloCikarma':
                         // Kapasitif enerjiyi azalt (minimum 0)
-                        yeniVeri.kapasitifEnerji = Math.max(0, yeniVeri.kapasitifEnerji - miktar);
+                        yeniVeri.kapasitifEnerji = Math.max(0, Math.round(yeniVeri.kapasitifEnerji - adimMiktar));
                         break;
                     case 'yukTransferi': {
                         // Aktif enerjiyi artır — hafta sonu/tatillerde yük transferi
                         // daha düşük etkinlikte (%60) uygulanır
-                        const etkiliMiktar = isIzinGunu ? Math.round(miktar * 0.60) : miktar;
-                        yeniVeri.aktifEnerji = yeniVeri.aktifEnerji + etkiliMiktar;
+                        const etkiliMiktar = isIzinGunu ? Math.round(adimMiktar * 0.60) : Math.round(adimMiktar);
+                        yeniVeri.aktifEnerji = Math.round(yeniVeri.aktifEnerji + etkiliMiktar);
                         break;
                     }
                 }

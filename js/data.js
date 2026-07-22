@@ -19572,7 +19572,9 @@ const VeriModulu = (() => {
     }
 
     // Modül yüklendiğinde gerçek saatlik veriyi hazırla
-    tumVerileriYukle()    // ─── Kullanıcı Tarafından Eklenen Veriler ───
+    tumVerileriYukle();
+
+    // ─── Kullanıcı Tarafından Eklenen Veriler ───
     let _ekVeriler = []; // Manuel girilen veriler burada tutulur
 
     // ─── localStorage Persistence ───

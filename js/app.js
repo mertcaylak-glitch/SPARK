@@ -303,6 +303,8 @@ const App = (() => {
 
         if (viewName === 'scada' && typeof TopolojiModulu !== 'undefined') {
             TopolojiModulu.render();
+        } else if (viewName === 'charts') {
+            renderDashboard();
         }
     }
 
