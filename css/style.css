@@ -1817,74 +1817,101 @@ input::placeholder {
 }
 
 /* ==========================================================================
-   LIGHT THEME OVERRIDES (Glassmorphism Light Mode)
+   LIGHT THEME OVERRIDES (High-Contrast Modern Clean Slate & Glassmorphism)
    ========================================================================== */
 [data-theme="light"] {
     /* Colors — Light Theme */
-    --bg-primary: #f8fafc;
+    --bg-primary: #f0f4f8;
     --bg-secondary: #ffffff;
-    --bg-tertiary: #f1f5f9;
-    --bg-card: rgba(255, 255, 255, 0.85);
-    --bg-card-hover: rgba(255, 255, 255, 0.98);
-    --bg-input: rgba(241, 245, 249, 0.95);
-    --bg-glass: rgba(255, 255, 255, 0.75);
+    --bg-tertiary: #e2e8f0;
+    --bg-card: #ffffff;
+    --bg-card-hover: #f8fafc;
+    --bg-input: #f8fafc;
+    --bg-glass: rgba(255, 255, 255, 0.92);
 
-    /* Text */
+    /* Text — Deep, high contrast slate typography */
     --text-primary: #0f172a;
     --text-secondary: #334155;
-    --text-muted: #64748b;
-    --text-dim: #94a3b8;
+    --text-muted: #475569;
+    --text-dim: #64748b;
 
     /* Border */
-    --border-color: rgba(15, 23, 42, 0.12);
-    --border-color-hover: rgba(15, 23, 42, 0.25);
+    --border-color: #cbd5e1;
+    --border-color-hover: #94a3b8;
 
-    /* Shadows */
-    --shadow-sm: 0 1px 3px rgba(15, 23, 42, 0.08);
-    --shadow-md: 0 4px 16px rgba(15, 23, 42, 0.08);
-    --shadow-lg: 0 8px 32px rgba(15, 23, 42, 0.12);
-    --shadow-glow-blue: 0 0 24px rgba(59, 130, 246, 0.15);
-    --shadow-glow-red: 0 0 24px rgba(239, 68, 68, 0.15);
-    --shadow-glow-green: 0 0 24px rgba(16, 185, 129, 0.15);
-    --shadow-glow-amber: 0 0 24px rgba(245, 158, 11, 0.15);
+    /* Shadows — Crisp, clean drop shadows for white cards */
+    --shadow-sm: 0 1px 2px 0 rgba(15, 23, 42, 0.05);
+    --shadow-md: 0 4px 6px -1px rgba(15, 23, 42, 0.07), 0 2px 4px -2px rgba(15, 23, 42, 0.05);
+    --shadow-lg: 0 10px 15px -3px rgba(15, 23, 42, 0.08), 0 4px 6px -4px rgba(15, 23, 42, 0.04);
+    --shadow-glow-blue: 0 4px 20px rgba(37, 99, 235, 0.15);
+    --shadow-glow-red: 0 4px 20px rgba(220, 38, 38, 0.15);
+    --shadow-glow-green: 0 4px 20px rgba(5, 150, 105, 0.15);
+    --shadow-glow-amber: 0 4px 20px rgba(217, 119, 6, 0.15);
 }
 
 /* Ambient Background in Light Mode */
 [data-theme="light"] body::before {
     background:
-        radial-gradient(ellipse 600px 400px at 15% 20%, rgba(59, 130, 246, 0.06) 0%, transparent 70%),
-        radial-gradient(ellipse 500px 500px at 85% 15%, rgba(139, 92, 246, 0.05) 0%, transparent 70%),
-        radial-gradient(ellipse 400px 300px at 50% 85%, rgba(6, 182, 212, 0.04) 0%, transparent 70%);
+        radial-gradient(ellipse 600px 400px at 15% 20%, rgba(37, 99, 235, 0.06) 0%, transparent 70%),
+        radial-gradient(ellipse 500px 500px at 85% 15%, rgba(124, 58, 237, 0.05) 0%, transparent 70%),
+        radial-gradient(ellipse 400px 300px at 50% 85%, rgba(8, 145, 178, 0.04) 0%, transparent 70%);
 }
 
 /* Header & Navigation */
 [data-theme="light"] .app-header {
-    background: rgba(255, 255, 255, 0.88);
+    background: rgba(255, 255, 255, 0.92);
+    border-bottom: 1px solid #cbd5e1;
 }
 
 [data-theme="light"] .nav-btn:hover {
-    background: rgba(59, 130, 246, 0.08);
-    color: var(--color-primary);
+    background: #eff6ff;
+    color: #2563eb;
+    border-color: #bfdbfe;
 }
 
 [data-theme="light"] .nav-btn.active {
-    background: rgba(59, 130, 246, 0.12);
-    color: var(--color-primary);
-    border-color: rgba(59, 130, 246, 0.3);
+    background: #eff6ff;
+    color: #1d4ed8;
+    border-color: #60a5fa;
+    font-weight: 600;
 }
+
+/* ─── Summary Cards (Dashboard KPIs) in Light Mode ─── */
+[data-theme="light"] .summary-card.card-total .card-icon { background: #dbeafe; color: #1d4ed8; border: 1px solid #bfdbfe; }
+[data-theme="light"] .summary-card.card-total .card-value { color: #1e3a8a; }
+
+[data-theme="light"] .summary-card.card-safe .card-icon { background: #d1fae5; color: #047857; border: 1px solid #a7f3d0; }
+[data-theme="light"] .summary-card.card-safe .card-value { color: #065f46; }
+
+[data-theme="light"] .summary-card.card-warning .card-icon { background: #fef3c7; color: #b45309; border: 1px solid #fde68a; }
+[data-theme="light"] .summary-card.card-warning .card-value { color: #92400e; }
+
+[data-theme="light"] .summary-card.card-danger .card-icon { background: #fee2e2; color: #b91c1c; border: 1px solid #fecaca; }
+[data-theme="light"] .summary-card.card-danger .card-value { color: #991b1b; }
+
+/* ─── Badges in Light Mode ─── */
+[data-theme="light"] .badge-guvenli { background: #d1fae5; color: #065f46; border: 1px solid #a7f3d0; }
+[data-theme="light"] .badge-normal { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+[data-theme="light"] .badge-dikkat { background: #fef3c7; color: #92400e; border: 1px solid #fde68a; }
+[data-theme="light"] .badge-riskli { background: #ffedd5; color: #9a3412; border: 1px solid #fed7aa; }
+[data-theme="light"] .badge-tehlikeli { background: #fee2e2; color: #991b1b; border: 1px solid #fecaca; }
+[data-theme="light"] .badge-info { background: #dbeafe; color: #1e40af; border: 1px solid #bfdbfe; }
+[data-theme="light"] .badge-tahmin { background: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; }
 
 /* SCADA Layout Overrides */
 [data-theme="light"] .scada-grid-card {
-    background: radial-gradient(circle at 50% 30%, rgba(241, 245, 249, 0.9) 0%, rgba(255, 255, 255, 0.98) 100%),
-                linear-gradient(rgba(59, 130, 246, 0.06) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(59, 130, 246, 0.06) 1px, transparent 1px);
+    background: radial-gradient(circle at 50% 30%, #f8fafc 0%, #ffffff 100%),
+                linear-gradient(rgba(37, 99, 235, 0.05) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(37, 99, 235, 0.05) 1px, transparent 1px);
     background-size: 100% 100%, 28px 28px, 28px 28px;
-    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.08), inset 0 0 40px rgba(59, 130, 246, 0.05);
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 12px 40px rgba(15, 23, 42, 0.06), inset 0 0 40px rgba(37, 99, 235, 0.03);
 }
 
 [data-theme="light"] .source-bus-box {
-    background: linear-gradient(135deg, rgba(255, 255, 255, 0.95) 0%, rgba(241, 245, 249, 0.95) 100%);
-    box-shadow: 0 8px 30px rgba(15, 23, 42, 0.08), 0 0 24px rgba(6, 182, 212, 0.15);
+    background: linear-gradient(135deg, #ffffff 0%, #f1f5f9 100%);
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
 }
 
 [data-theme="light"] .source-info h4 {
@@ -1892,53 +1919,65 @@ input::placeholder {
 }
 
 [data-theme="light"] .substation-bus-bar {
-    background: linear-gradient(90deg, rgba(241, 245, 249, 0.95) 0%, rgba(255, 255, 255, 0.95) 100%);
+    background: linear-gradient(90deg, #f1f5f9 0%, #ffffff 100%);
+    border-color: #cbd5e1;
 }
 
 [data-theme="light"] .scada-trafo-card {
-    background: rgba(255, 255, 255, 0.9);
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    box-shadow: var(--shadow-sm);
 }
 
 [data-theme="light"] .scada-trafo-card:hover {
-    background: #ffffff;
+    background: #f8fafc;
+    border-color: #94a3b8;
+    box-shadow: var(--shadow-md);
 }
 
 /* Table Header Overrides */
 [data-theme="light"] .data-table thead th {
-    background: rgba(241, 245, 249, 0.9);
-    color: var(--text-secondary);
+    background: #e2e8f0;
+    color: var(--text-primary);
+    border-bottom: 2px solid #cbd5e1;
 }
 
 /* Modals & Popups Overrides */
 [data-theme="light"] .modal-content,
 [data-theme="light"] .power-triangle-modal {
-    background: rgba(255, 255, 255, 0.96);
-    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.25), 0 0 50px rgba(59, 130, 246, 0.1);
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 24px 80px rgba(15, 23, 42, 0.18), 0 0 50px rgba(37, 99, 235, 0.08);
 }
 
 [data-theme="light"] .modal-metrics-box {
-    background: rgba(241, 245, 249, 0.8);
+    background: #f1f5f9;
+    border: 1px solid #cbd5e1;
 }
 
 [data-theme="light"] .modal-compensation-box {
-    background: rgba(241, 245, 249, 0.9);
+    background: #eff6ff;
+    border: 1px solid #bfdbfe;
 }
 
 [data-theme="light"] .modal-compensation-text {
-    color: var(--text-primary);
+    color: #1e3a8a;
 }
 
 /* Scenario & Other Overrides */
 [data-theme="light"] .senaryo-card {
-    background: rgba(255, 255, 255, 0.9);
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
 }
 
 [data-theme="light"] .senaryo-karsilastirma {
-    background: rgba(241, 245, 249, 0.8);
+    background: #f8fafc;
+    border: 1px solid #cbd5e1;
 }
 
 [data-theme="light"] .toast {
-    background: rgba(255, 255, 255, 0.95);
+    background: #ffffff;
     color: var(--text-primary);
-    box-shadow: 0 8px 30px rgba(15, 23, 42, 0.15);
+    border: 1px solid #cbd5e1;
+    box-shadow: 0 8px 30px rgba(15, 23, 42, 0.12);
 }

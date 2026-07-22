@@ -68,6 +68,7 @@ const GrafikModulu = (() => {
         const values = trafoOzetleri.map(
             (d) => d.ozet?.kapasitifOran || 0
         );
+        const isLight = document.body.getAttribute('data-theme') === 'light';
         const colors = values.map((v) => {
             const risk = HesaplamaModulu.riskSeviyesiBelirle(v, 'kapasitif');
             return risk.renk;
@@ -81,7 +82,7 @@ const GrafikModulu = (() => {
                     {
                         label: 'Kapasitif Oran (%)',
                         data: values,
-                        backgroundColor: colors.map((c) => c + '30'),
+                        backgroundColor: colors.map((c) => isLight ? (c + 'CC') : (c + '30')),
                         borderColor: colors,
                         borderWidth: 2,
                         borderRadius: 6,
@@ -135,6 +136,12 @@ const GrafikModulu = (() => {
         const ctx = document.getElementById(canvasId)?.getContext('2d');
         if (!ctx) return;
 
+        const isLight = document.body.getAttribute('data-theme') === 'light';
+        const sliceBorder = isLight ? '#ffffff' : '#111827';
+        const sliceColors = isLight
+            ? ['rgba(37, 99, 235, 0.88)', 'rgba(124, 58, 237, 0.88)', 'rgba(8, 145, 178, 0.88)']
+            : ['rgba(59, 130, 246, 0.7)', 'rgba(139, 92, 246, 0.7)', 'rgba(6, 182, 212, 0.7)'];
+
         _charts[canvasId] = new Chart(ctx, {
             type: 'doughnut',
             data: {
@@ -142,12 +149,8 @@ const GrafikModulu = (() => {
                 datasets: [
                     {
                         data: [aktif, enduktif, kapasitif],
-                        backgroundColor: [
-                            'rgba(59, 130, 246, 0.7)',
-                            'rgba(139, 92, 246, 0.7)',
-                            'rgba(6, 182, 212, 0.7)',
-                        ],
-                        borderColor: '#111827',
+                        backgroundColor: sliceColors,
+                        borderColor: sliceBorder,
                         borderWidth: 3,
                         hoverOffset: 6,
                     },
@@ -392,8 +395,9 @@ const GrafikModulu = (() => {
         const mevcutLabels = mevcutDaily.map((d) => d.label);
         const mevcutValues = mevcutDaily.map((d) => d.gunlukKapasitifOran);
 
+        const isLight = document.body.getAttribute('data-theme') === 'light';
         const colors = mevcutValues.map((v) => HesaplamaModulu.riskSeviyesiBelirle(v, 'kapasitif').renk);
-        const bgColors = colors.map((c) => c + '50');
+        const bgColors = colors.map((c) => isLight ? (c + 'CC') : (c + '50'));
 
         let allLabels = [...mevcutLabels];
         let allValuesForScale = [...mevcutValues];
@@ -435,7 +439,7 @@ const GrafikModulu = (() => {
             datasets.push({
                 label: 'Tahmin Edilen Günlük Oran (%)',
                 data: dataset2Data,
-                backgroundColor: 'rgba(245, 158, 11, 0.25)',
+                backgroundColor: isLight ? 'rgba(217, 119, 6, 0.85)' : 'rgba(245, 158, 11, 0.25)',
                 borderColor: '#f59e0b',
                 borderWidth: 2,
                 borderRadius: 6,
@@ -639,6 +643,20 @@ const GrafikModulu = (() => {
             if (chart.options.plugins && chart.options.plugins.legend && chart.options.plugins.legend.labels) {
                 chart.options.plugins.legend.labels.color = textColor;
             }
+
+            if (chart.config.type === 'doughnut' && chart.data.datasets && chart.data.datasets[0]) {
+                chart.data.datasets[0].borderColor = isLight ? '#ffffff' : '#111827';
+                chart.data.datasets[0].backgroundColor = isLight
+                    ? ['rgba(37, 99, 235, 0.88)', 'rgba(124, 58, 237, 0.88)', 'rgba(8, 145, 178, 0.88)']
+                    : ['rgba(59, 130, 246, 0.7)', 'rgba(139, 92, 246, 0.7)', 'rgba(6, 182, 212, 0.7)'];
+            } else if (chart.config.type === 'bar' && chart.data.datasets && chart.data.datasets[0]) {
+                if (chart.canvas.id === 'chart-dashboard-bar' && Array.isArray(chart.data.datasets[0].borderColor)) {
+                    chart.data.datasets[0].backgroundColor = chart.data.datasets[0].borderColor.map(c => isLight ? (c + 'CC') : (c + '30'));
+                } else if (Array.isArray(chart.data.datasets[0].borderColor)) {
+                    chart.data.datasets[0].backgroundColor = chart.data.datasets[0].borderColor.map(c => isLight ? (c + 'CC') : (c + '50'));
+                }
+            }
+
             chart.update('none');
         });
     }

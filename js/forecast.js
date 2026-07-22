@@ -532,7 +532,7 @@ const TahminModulu = (() => {
 
         const isHourly = isHourlyData(mevcutVeriler);
         const K = Math.min(isHourly ? 168 : 10, mevcutVeriler.length - (isHourly ? 48 : 4));
-        let toplamSapma = 0, toplamYuzdeHata = 0, gecerliSayac = 0;
+        let toplamSapma = 0, toplamYuzdeHata = 0, toplamGercekOran = 0, gecerliSayac = 0;
 
         for (let i = mevcutVeriler.length - K; i < mevcutVeriler.length; i += (isHourly ? 6 : 1)) {
             const egitimSeti = mevcutVeriler.slice(0, i);
@@ -567,6 +567,7 @@ const TahminModulu = (() => {
 
                 toplamSapma += sapma;
                 toplamYuzdeHata += yuzdeHata;
+                toplamGercekOran += gercekOran;
                 gecerliSayac++;
             }
         }
@@ -582,9 +583,19 @@ const TahminModulu = (() => {
         }
 
         const ortSapma = toplamSapma / gecerliSayac;
-        const mape = toplamYuzdeHata / gecerliSayac;
-        const canliSkorHam = 100 - (mape * 0.8 + ortSapma * 1.8);
-        const canliSkor = Math.max(65.0, Math.min(99.6, Math.round(canliSkorHam * 10) / 10));
+        const ortGercek = Math.max(0.5, toplamGercekOran / gecerliSayac);
+        // Bağıl Hata (WMAPE): Ortalama sapmanın, trafonun ortalama yük/oran profiline göre bağıl yüzdesi
+        const wmape = (ortSapma / ortGercek) * 100;
+
+        // Empirik Başarı Skoru (0-100 ölçeğinde, ortalama puan sapması ve bağıl hataya göre hesaplanır)
+        const empirikSkor = Math.max(30.0, 100 - (ortSapma * 4.2 + (wmape * 0.15)));
+
+        // Nihai Canlı Güven Skoru: %40 Teorik Model Hassasiyeti + %60 Çevrimiçi Backtest Empirik Başarısı
+        const canliSkorHam = (secilenBilgi.skor * 0.40) + (empirikSkor * 0.60);
+        const canliSkor = Math.max(50.0, Math.min(99.4, Math.round(canliSkorHam * 10) / 10));
+
+        const mapeGosterim = Math.round(wmape * 10) / 10;
+        const ortSapmaGosterim = Math.round(ortSapma * 100) / 100;
 
         return {
             adi: secilenBilgi.adi,
@@ -593,9 +604,9 @@ const TahminModulu = (() => {
             aciklama: secilenBilgi.aciklama,
             canliTest: {
                 testGunSayisi: gecerliSayac,
-                mape: mape.toFixed(1),
-                ortSapma: ortSapma.toFixed(2),
-                detay: `⚡ Canlı Test (Backtest): Son ${gecerliSayac} adım üzerinde yapılan çapraz doğrulamada modelin ortalama hata payı %${mape.toFixed(1)} (±${ortSapma.toFixed(2)} puan sapma) olarak ölçülmüştür.`
+                mape: mapeGosterim.toFixed(1),
+                ortSapma: ortSapmaGosterim.toFixed(2),
+                detay: `⚡ Canlı Test (Backtest): Son ${gecerliSayac} adım üzerinde yapılan çapraz doğrulamada modelin ortalama sapması ±${ortSapmaGosterim.toFixed(2)} puan (bağıl hata %${mapeGosterim.toFixed(1)}) olarak ölçülmüştür.`
             }
         };
     }

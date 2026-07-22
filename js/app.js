@@ -689,15 +689,17 @@ const App = (() => {
                 </div>
                 <div class="dc-unit">puan (${bilgi.adi.split(' ')[1] || 'Model'})</div>
             </div>
-            <div class="detay-card" style="border-left: 3px solid #3b82f6;">
+            <div class="detay-card" style="border-left: 3px solid #3b82f6; cursor: pointer;" onclick="App.toggleModelDetail()" title="Açıklama ve test detayları için tıklayın">
                 <div class="dc-label">🎯 Canlı Model Güven Skoru</div>
-                <div class="dc-value text-info" style="display:flex; align-items:baseline; gap:6px;">
+                <div class="dc-value text-info">
                     %${bilgi.skor}
-                    ${bilgi.canliTest ? `<span style="font-size:12px; color:#94a3b8; font-weight:normal;">(Teorik: %${bilgi.teorikSkor})</span>` : ''}
                 </div>
-                <div class="dc-unit" style="font-size:11px; white-space:normal; line-height:1.3; margin-top:4px; color:#cbd5e1;">
-                    ${bilgi.aciklama}
-                    ${bilgi.canliTest ? `<div style="margin-top:6px; padding:6px 8px; background:rgba(59,130,246,0.1); border-radius:4px; color:#60a5fa; font-size:11px; border-left:2px solid #3b82f6;">${bilgi.canliTest.detay}</div>` : ''}
+                <div class="dc-unit" id="model-info-hint" style="font-size:11px; color:#3b82f6; font-weight:600; display:flex; align-items:center; gap:4px; margin-top:4px;">
+                    ℹ️ Detay ve Açıklamayı Göster ▼
+                </div>
+                <div id="model-info-detail" style="display:none; margin-top:10px; padding-top:10px; border-top:1px solid rgba(148,163,184,0.2); font-size:11px; white-space:normal; line-height:1.4; color:var(--text-secondary);" onclick="event.stopPropagation();">
+                    <div style="margin-bottom:6px; color:var(--text-primary); font-weight:500;">${bilgi.aciklama}</div>
+                    ${bilgi.canliTest ? `<div style="padding:8px 10px; background:rgba(59,130,246,0.1); border-radius:6px; color:#3b82f6; border-left:3px solid #3b82f6;">${bilgi.canliTest.detay}</div>` : ''}
                 </div>
             </div>
         `;
@@ -873,9 +875,24 @@ const App = (() => {
             GrafikModulu.updateTheme(themeName === 'light');
         }
 
+        if (state.currentScreen) {
+            navigate(state.currentScreen);
+        }
+
         const modal = document.getElementById('power-triangle-modal');
-        if (modal && modal.classList.contains('active') && typeof TopolojiModulu !== 'undefined' && state.selectedTrafoId) {
+        if (modal && modal.style.display === 'flex' && typeof TopolojiModulu !== 'undefined' && state.selectedTrafoId) {
             TopolojiModulu.openPowerTriangleModal(state.selectedTrafoId);
+        }
+    }
+
+    function toggleModelDetail() {
+        const el = document.getElementById('model-info-detail');
+        const hint = document.getElementById('model-info-hint');
+        if (!el) return;
+        const isHidden = el.style.display === 'none';
+        el.style.display = isHidden ? 'block' : 'none';
+        if (hint) {
+            hint.innerHTML = isHidden ? 'ℹ️ Detayı Gizle ▲' : 'ℹ️ Detay ve Açıklamayı Göster ▼';
         }
     }
 
@@ -889,6 +906,7 @@ const App = (() => {
         navigateToTrafo,
         silVeri,
         switchDashboardView,
+        toggleModelDetail,
         getState: () => state,
     };
 })();
