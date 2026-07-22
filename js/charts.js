@@ -1,0 +1,623 @@
+// ============================================
+// charts.js - Chart.js Grafik Konfigürasyonları
+// Reaktif Güç Takip ve Analiz Sistemi
+// ============================================
+
+const GrafikModulu = (() => {
+    'use strict';
+
+    // ─── Chart.js Global Defaults ───
+    Chart.defaults.color = '#94a3b8';
+    Chart.defaults.borderColor = 'rgba(148, 163, 184, 0.08)';
+    Chart.defaults.font.family = "'Inter', sans-serif";
+    Chart.defaults.font.size = 12;
+
+    // Aktif grafik referansları (destroy etmek için)
+    const _charts = {};
+
+    // ─── Yardımcı: Var olan grafiği yok et ───
+    function destroyChart(id) {
+        if (_charts[id]) {
+            _charts[id].destroy();
+            delete _charts[id];
+        }
+    }
+
+    // ─── Sınır çizgisi annotation oluşturucu ───
+    function sinirAnnotation(value, label, axis = 'y') {
+        const config = {
+            type: 'line',
+            borderColor: '#ef4444',
+            borderWidth: 2,
+            borderDash: [6, 4],
+            label: {
+                display: true,
+                content: label,
+                position: 'end',
+                backgroundColor: 'rgba(239, 68, 68, 0.85)',
+                color: '#fff',
+                font: { size: 11, weight: '600' },
+                padding: { x: 6, y: 3 },
+                borderRadius: 4,
+            },
+        };
+
+        if (axis === 'y') {
+            config.yMin = value;
+            config.yMax = value;
+        } else {
+            config.xMin = value;
+            config.xMax = value;
+        }
+
+        return config;
+    }
+
+    // ═══════════════════════════════════════════
+    // 1. Dashboard — Yatay Bar Chart
+    //    Tüm trafoların kapasitif oranları
+    // ═══════════════════════════════════════════
+    function createDashboardBarChart(canvasId, trafoOzetleri) {
+        destroyChart(canvasId);
+        const ctx = document.getElementById(canvasId)?.getContext('2d');
+        if (!ctx) return;
+
+        const labels = trafoOzetleri.map(
+            (d) => d.trafo.adi.split(' – ')[0]
+        );
+        const values = trafoOzetleri.map(
+            (d) => d.ozet?.kapasitifOran || 0
+        );
+        const colors = values.map((v) => {
+            const risk = HesaplamaModulu.riskSeviyesiBelirle(v, 'kapasitif');
+            return risk.renk;
+        });
+
+        _charts[canvasId] = new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Kapasitif Oran (%)',
+                        data: values,
+                        backgroundColor: colors.map((c) => c + '30'),
+                        borderColor: colors,
+                        borderWidth: 2,
+                        borderRadius: 6,
+                        barThickness: 28,
+                    },
+                ],
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        borderColor: 'rgba(148, 163, 184, 0.2)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 12,
+                        callbacks: {
+                            label: (item) =>
+                                `Kapasitif Oran: %${item.parsed.x.toFixed(2)}`,
+                        },
+                    },
+                    annotation: {
+                        annotations: {
+                            limitLine: sinirAnnotation(15, '%15 Sınır', 'x'),
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        beginAtZero: true,
+                        max: 22,
+                        grid: { color: 'rgba(148, 163, 184, 0.06)' },
+                        ticks: { callback: (v) => `%${v}` },
+                    },
+                    y: {
+                        grid: { display: false },
+                    },
+                },
+            },
+        });
+    }
+
+    // ═══════════════════════════════════════════
+    // 2. Dashboard — Enerji Dağılım Doughnut
+    // ═══════════════════════════════════════════
+    function createEnergyDoughnut(canvasId, aktif, enduktif, kapasitif) {
+        destroyChart(canvasId);
+        const ctx = document.getElementById(canvasId)?.getContext('2d');
+        if (!ctx) return;
+
+        _charts[canvasId] = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Aktif (kWh)', 'Endüktif (kVArh)', 'Kapasitif (kVArh)'],
+                datasets: [
+                    {
+                        data: [aktif, enduktif, kapasitif],
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.7)',
+                            'rgba(139, 92, 246, 0.7)',
+                            'rgba(6, 182, 212, 0.7)',
+                        ],
+                        borderColor: '#111827',
+                        borderWidth: 3,
+                        hoverOffset: 6,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        position: 'bottom',
+                        labels: {
+                            padding: 16,
+                            usePointStyle: true,
+                            pointStyleWidth: 10,
+                            font: { size: 12 },
+                        },
+                    },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        borderColor: 'rgba(148, 163, 184, 0.2)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 12,
+                        callbacks: {
+                            label: (item) => {
+                                const val = item.parsed;
+                                const total = item.dataset.data.reduce((a, b) => a + b, 0);
+                                const pct = ((val / total) * 100).toFixed(1);
+                                return `${item.label}: ${val.toLocaleString('tr-TR')} (${pct}%)`;
+                            },
+                        },
+                    },
+                },
+                cutout: '62%',
+            },
+        });
+    }
+
+    // ─── Yardımcı Fonksiyon: Günlük Grafik Verilerine Dönüştürme ───
+    function toDailyChartData(veriler, initialAktif = 0, initialKap = 0, initialEnd = 0, skipFirstDateStr = null) {
+        if (!veriler || !veriler.length) return [];
+        const dayMap = new Map();
+
+        veriler.forEach((v) => {
+            const dateStr = v.tarih.split(' ')[0]; // "YYYY-MM-DD"
+            if (!dayMap.has(dateStr)) {
+                dayMap.set(dateStr, {
+                    ...v,
+                    tarih: dateStr,
+                    label: dateStr.split('-')[2], // "01", "02", ... "31"
+                    aktifEnerji: 0,
+                    enduktifEnerji: 0,
+                    kapasitifEnerji: 0,
+                });
+            }
+            const d = dayMap.get(dateStr);
+            d.aktifEnerji += (v.aktifEnerji || 0);
+            d.enduktifEnerji += (v.enduktifEnerji || 0);
+            d.kapasitifEnerji += (v.kapasitifEnerji || 0);
+        });
+
+        let tmpAktif = initialAktif;
+        let tmpKap = initialKap;
+        let tmpEnd = initialEnd;
+
+        const results = [];
+        for (const d of dayMap.values()) {
+            if (skipFirstDateStr && d.tarih === skipFirstDateStr) {
+                // Sadece mevcut kümülatife enerji ekle ama yeni etiket oluşturma
+                tmpAktif += d.aktifEnerji;
+                tmpKap += d.kapasitifEnerji;
+                tmpEnd += d.enduktifEnerji;
+                continue;
+            }
+            tmpAktif += d.aktifEnerji;
+            tmpKap += d.kapasitifEnerji;
+            tmpEnd += d.enduktifEnerji;
+
+            const gunlukKapOran = d.aktifEnerji > 0 ? (d.kapasitifEnerji / d.aktifEnerji) * 100 : 0;
+            const gunlukEndOran = d.aktifEnerji > 0 ? (d.enduktifEnerji / d.aktifEnerji) * 100 : 0;
+            const kumKapOran = tmpAktif > 0 ? (tmpKap / tmpAktif) * 100 : 0;
+            const kumEndOran = tmpAktif > 0 ? (tmpEnd / tmpAktif) * 100 : 0;
+
+            results.push({
+                ...d,
+                kumulatifAktif: tmpAktif,
+                kumulatifEnduktif: tmpEnd,
+                kumulatifKapasitif: tmpKap,
+                gunlukKapasitifOran: gunlukKapOran,
+                gunlukEnduktifOran: gunlukEndOran,
+                kumulatifKapasitifOran: kumKapOran,
+                kumulatifEnduktifOran: kumEndOran,
+            });
+        }
+        return results;
+    }
+
+    // ═══════════════════════════════════════════
+    // 3. Trafo Detay / Tahmin — Kümülatif & Günlük Oran Çizgi Grafik
+    // ═══════════════════════════════════════════
+    function createCumulativeLineChart(canvasId, kumulatifData, tahminData, sinir) {
+        destroyChart(canvasId);
+        const ctx = document.getElementById(canvasId)?.getContext('2d');
+        if (!ctx) return;
+
+        const mevcutDaily = toDailyChartData(kumulatifData);
+        const mevcutLabels = mevcutDaily.map((d) => d.label);
+        const mevcutValues = mevcutDaily.map((d) => d.kumulatifKapasitifOran);
+
+        const datasets = [
+            {
+                label: 'Kümülatif Kapasitif Oran (%)',
+                data: mevcutValues,
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59, 130, 246, 0.08)',
+                fill: true,
+                tension: 0.35,
+                pointRadius: 3,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#3b82f6',
+                pointBorderColor: '#1e293b',
+                pointBorderWidth: 2,
+                borderWidth: 2.5,
+            },
+        ];
+
+        let allLabels = [...mevcutLabels];
+        let allValuesForScale = [...mevcutValues];
+
+        if (tahminData && tahminData.length > 0) {
+            const sonMevcut = mevcutDaily[mevcutDaily.length - 1];
+            const tahminDaily = toDailyChartData(
+                tahminData,
+                sonMevcut ? sonMevcut.kumulatifAktif : 0,
+                sonMevcut ? sonMevcut.kumulatifKapasitif : 0,
+                sonMevcut ? sonMevcut.kumulatifEnduktif : 0,
+                sonMevcut ? sonMevcut.tarih : null
+            );
+
+            const tahminLabels = tahminDaily.map((d) => d.label);
+            const tahminKumValues = tahminDaily.map((d) => d.kumulatifKapasitifOran);
+
+            // Köprü: son gerçek noktadan tahmin başlangıcına bağlantı
+            const bridgeKumData = new Array(mevcutValues.length - 1).fill(null);
+            bridgeKumData.push(mevcutValues[mevcutValues.length - 1]);
+            bridgeKumData.push(...tahminKumValues);
+
+            allLabels = [...mevcutLabels, ...tahminLabels];
+            allValuesForScale.push(...tahminKumValues);
+
+            datasets.push({
+                label: 'Tahmin Edilen Kümülatif (%)',
+                data: bridgeKumData,
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245, 158, 11, 0.08)',
+                fill: true,
+                borderDash: [6, 4],
+                tension: 0.35,
+                pointRadius: 4,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#f59e0b',
+                pointBorderColor: '#1e293b',
+                pointBorderWidth: 2,
+                borderWidth: 2.8,
+            });
+        }
+
+        const validValues = allValuesForScale.filter(v => typeof v === 'number' && !isNaN(v));
+        const minV = validValues.length ? Math.min(...validValues) : 0;
+        const maxV = validValues.length ? Math.max(...validValues) : 20;
+        const pad = Math.max(0.4, (maxV - minV) * 0.15);
+
+        _charts[canvasId] = new Chart(ctx, {
+            type: 'line',
+            data: { labels: allLabels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        borderColor: 'rgba(148, 163, 184, 0.2)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 12,
+                        callbacks: {
+                            title: (items) => {
+                                if (!items.length) return '';
+                                return `${items[0].label}. Gün (Kümülatif Oran Değişimi)`;
+                            },
+                            label: (item) =>
+                                item.parsed.y !== null
+                                    ? `${item.dataset.label}: %${item.parsed.y.toFixed(2)}`
+                                    : '',
+                        },
+                    },
+                    annotation: {
+                        annotations: {
+                            limitLine: sinirAnnotation(sinir, `%${sinir} Sınır`),
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(148, 163, 184, 0.06)' },
+                        title: {
+                            display: true,
+                            text: 'Gün',
+                            color: '#94a3b8',
+                            font: { weight: '600' },
+                        },
+                    },
+                    y: {
+                        grid: { color: 'rgba(148, 163, 184, 0.06)' },
+                        suggestedMin: Math.max(0, Math.floor((minV - pad) * 10) / 10),
+                        suggestedMax: Math.max(Math.ceil((maxV + pad) * 10) / 10, sinir + 2),
+                        title: {
+                            display: true,
+                            text: 'Kapasitif Oran (%)',
+                            color: '#94a3b8',
+                            font: { weight: '600' },
+                        },
+                        ticks: { callback: (v) => `%${v}` },
+                    },
+                },
+            },
+        });
+    }
+
+    // ═══════════════════════════════════════════
+    // 3.1. Günlük Ayrık Kapasitif Oran — Sütun (Bar) Chart
+    // ═══════════════════════════════════════════
+    function createDailyBarChart(canvasId, kumulatifData, tahminData, sinir) {
+        destroyChart(canvasId);
+        const ctx = document.getElementById(canvasId)?.getContext('2d');
+        if (!ctx) return;
+
+        const mevcutDaily = toDailyChartData(kumulatifData);
+        const mevcutLabels = mevcutDaily.map((d) => d.label);
+        const mevcutValues = mevcutDaily.map((d) => d.gunlukKapasitifOran);
+
+        const colors = mevcutValues.map((v) => HesaplamaModulu.riskSeviyesiBelirle(v, 'kapasitif').renk);
+        const bgColors = colors.map((c) => c + '50');
+
+        let allLabels = [...mevcutLabels];
+        let allValuesForScale = [...mevcutValues];
+        const datasets = [];
+
+        if (tahminData && tahminData.length > 0) {
+            const sonMevcut = mevcutDaily[mevcutDaily.length - 1];
+            const tahminDaily = toDailyChartData(
+                tahminData,
+                0,
+                0,
+                0,
+                sonMevcut ? sonMevcut.tarih : null
+            );
+
+            const tahminLabels = tahminDaily.map((d) => d.label);
+            const tahminValues = tahminDaily.map((d) => d.gunlukKapasitifOran);
+
+            allLabels = [...mevcutLabels, ...tahminLabels];
+            allValuesForScale.push(...tahminValues);
+
+            const dataset1Data = [...mevcutValues, ...new Array(tahminValues.length).fill(null)];
+            const dataset1Colors = [...colors, ...new Array(tahminValues.length).fill('transparent')];
+            const dataset1BgColors = [...bgColors, ...new Array(tahminValues.length).fill('transparent')];
+
+            const dataset2Data = [...new Array(mevcutValues.length).fill(null), ...tahminValues];
+
+            datasets.push({
+                label: 'Gerçekleşen Günlük Oran (%)',
+                data: dataset1Data,
+                backgroundColor: dataset1BgColors,
+                borderColor: dataset1Colors,
+                borderWidth: 2,
+                borderRadius: 6,
+                barThickness: 'flex',
+                maxBarThickness: 32,
+            });
+
+            datasets.push({
+                label: 'Tahmin Edilen Günlük Oran (%)',
+                data: dataset2Data,
+                backgroundColor: 'rgba(245, 158, 11, 0.25)',
+                borderColor: '#f59e0b',
+                borderWidth: 2,
+                borderRadius: 6,
+                barThickness: 'flex',
+                maxBarThickness: 32,
+            });
+        } else {
+            datasets.push({
+                label: 'Gerçekleşen Günlük Oran (%)',
+                data: mevcutValues,
+                backgroundColor: bgColors,
+                borderColor: colors,
+                borderWidth: 2,
+                borderRadius: 6,
+                barThickness: 'flex',
+                maxBarThickness: 32,
+            });
+        }
+
+        const validValues = allValuesForScale.filter(v => typeof v === 'number' && !isNaN(v));
+        const minV = validValues.length ? Math.min(...validValues) : 0;
+        const maxV = validValues.length ? Math.max(...validValues) : 20;
+        const pad = Math.max(1, (maxV - minV) * 0.15);
+
+        _charts[canvasId] = new Chart(ctx, {
+            type: 'bar',
+            data: { labels: allLabels, datasets },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        borderColor: 'rgba(148, 163, 184, 0.2)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 12,
+                        callbacks: {
+                            title: (items) => {
+                                if (!items.length) return '';
+                                return `${items[0].label}. Gün (Günlük Ayrık Oran)`;
+                            },
+                            label: (item) => {
+                                if (item.parsed.y === null || isNaN(item.parsed.y)) return '';
+                                const valStr = `%${item.parsed.y.toFixed(2)}`;
+                                const risk = HesaplamaModulu.riskSeviyesiBelirle(item.parsed.y, 'kapasitif');
+                                return `${item.dataset.label}: ${valStr} (${risk.etiket})`;
+                            },
+                        },
+                    },
+                    annotation: {
+                        annotations: {
+                            limitLine: sinirAnnotation(sinir, `%${sinir} Sınır`),
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(148, 163, 184, 0.06)' },
+                        title: {
+                            display: true,
+                            text: 'Gün',
+                            color: '#94a3b8',
+                            font: { weight: '600' },
+                        },
+                    },
+                    y: {
+                        beginAtZero: true,
+                        grid: { color: 'rgba(148, 163, 184, 0.06)' },
+                        suggestedMax: Math.max(Math.ceil((maxV + pad) * 10) / 10, sinir + 3),
+                        title: {
+                            display: true,
+                            text: 'Günlük Kapasitif Oran (%)',
+                            color: '#94a3b8',
+                            font: { weight: '600' },
+                        },
+                        ticks: { callback: (v) => `%${v}` },
+                    },
+                },
+            },
+        });
+    }
+
+    // ═══════════════════════════════════════════
+    // 4. Senaryo — Karşılaştırmalı Çizgi Grafik
+    // ═══════════════════════════════════════════
+    function createScenarioChart(canvasId, orijinalVeriler, senaryoluVeriler, sinir) {
+        destroyChart(canvasId);
+        const ctx = document.getElementById(canvasId)?.getContext('2d');
+        if (!ctx) return;
+
+        const origDaily = toDailyChartData(orijinalVeriler);
+        const senDaily = toDailyChartData(senaryoluVeriler);
+
+        const labels = origDaily.map((d) => d.label);
+        const origValues = origDaily.map((d) => d.kumulatifKapasitifOran);
+        const senValues = senDaily.map((d) => d.kumulatifKapasitifOran);
+
+        const allV = [...origValues, ...senValues].filter(v => typeof v === 'number' && !isNaN(v));
+        const minVal = allV.length ? Math.min(...allV) : 0;
+        const maxVal = allV.length ? Math.max(...allV) : 20;
+        const pad = Math.max(0.5, (maxVal - minVal) * 0.15);
+
+        _charts[canvasId] = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels,
+                datasets: [
+                    {
+                        label: 'Müdahalesiz Orijinal (%)',
+                        data: origValues,
+                        borderColor: '#ef4444',
+                        backgroundColor: 'rgba(239, 68, 68, 0.08)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 2.5,
+                        pointRadius: 2.5,
+                    },
+                    {
+                        label: 'Müdahale Sonrası İyileşmiş (%)',
+                        data: senValues,
+                        borderColor: '#10b981',
+                        backgroundColor: 'rgba(16, 185, 129, 0.12)',
+                        fill: true,
+                        tension: 0.35,
+                        borderWidth: 3,
+                        pointRadius: 3,
+                    },
+                ],
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                interaction: { mode: 'index', intersect: false },
+                plugins: {
+                    legend: { position: 'top' },
+                    tooltip: {
+                        backgroundColor: 'rgba(15, 23, 42, 0.95)',
+                        borderColor: 'rgba(148, 163, 184, 0.2)',
+                        borderWidth: 1,
+                        cornerRadius: 8,
+                        padding: 12,
+                        callbacks: {
+                            title: (items) => {
+                                if (!items.length) return '';
+                                return `${items[0].label}. Gün (Senaryo Karşılaştırması)`;
+                            },
+                            label: (item) =>
+                                `${item.dataset.label}: %${item.parsed.y.toFixed(2)}`,
+                        },
+                    },
+                    annotation: {
+                        annotations: {
+                            limitLine: sinirAnnotation(sinir, `%${sinir} Sınır`),
+                        },
+                    },
+                },
+                scales: {
+                    x: {
+                        grid: { color: 'rgba(148, 163, 184, 0.06)' },
+                        title: { display: true, text: 'Gün', color: '#94a3b8' },
+                    },
+                    y: {
+                        grid: { color: 'rgba(148, 163, 184, 0.06)' },
+                        suggestedMin: Math.max(0, Math.floor((minVal - pad) * 10) / 10),
+                        suggestedMax: Math.max(Math.ceil((maxVal + pad) * 10) / 10, sinir + 2),
+                        ticks: { callback: (v) => `%${v}` },
+                    },
+                },
+            },
+        });
+    }
+
+    // ─── Public API ───
+    return {
+        createDashboardBarChart,
+        createEnergyDoughnut,
+        createCumulativeLineChart,
+        createDailyBarChart,
+        createScenarioChart,
+        destroyChart,
+    };
+})();
