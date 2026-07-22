@@ -12,8 +12,8 @@
 ## 🎯 Projenin Amacı ve Çözdüğü Problem
 
 Türkiye'de **EPDK (Enerji Piyasası Düzenleme Kurumu)** mevzuatına göre kurulu gücü 50 kVA ve üzeri olan tüketicilerin ya da iletim/dağıtım noktalarının aylık kümülatif reaktif enerji tüketim oranlerinin belirli sınırları aşması durumunda **Reaktif Güç Cezası** uygulanır:
-* **Endüktif Sınır:** $\frac{\text{Kümülatif Endüktif}}{\text{Kümülatif Aktif}} \le \%20$
-* **Kapasitif Sınır:** $\frac{\text{Kümülatif Kapasitif}}{\text{Kümülatif Aktif}} \le \%15$
+* **Endüktif Sınır:** $\frac{\text{Kümülatif Endüktif}}{\text{Kümülatif Aktif}} \le$ **%20**
+* **Kapasitif Sınır:** $\frac{\text{Kümülatif Kapasitif}}{\text{Kümülatif Aktif}} \le$ **%15**
 
 **Karşılaşılan Temel Sorunlar:**
 1. **Günlük/Aylık Körlük:** Geleneksel sistemlerde takipler günlük veya aylık fatura dönemlerinde yapılır; ay sonundaki kümülatif ceza riski önceden fark edilemez.
