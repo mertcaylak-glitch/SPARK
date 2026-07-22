@@ -135,6 +135,10 @@ const TopolojiModulu = (() => {
                 systemDurumEl.innerHTML = `<span style="color: #10b981; font-weight: 800;">🟢 GÜVENLİ (Normal)</span>`;
             }
         }
+
+        if (typeof App !== 'undefined' && App.renderForecastBanner) {
+            App.renderForecastBanner();
+        }
     }
 
     function buildSubstationGrid(trafolar) {

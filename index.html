@@ -80,6 +80,9 @@
 
             <!-- GÖRÜNÜM 1: Tablo & Grafik Görünümü -->
             <div id="dashboard-view-charts" class="dashboard-view-content active">
+                <!-- Ay Sonu Tahmin ve Risk Bildirim Barı -->
+                <div id="dashboard-forecast-banner" class="mb-lg"></div>
+
                 <!-- Özet KPI Kartları -->
                 <div class="summary-cards" id="summary-cards"></div>
 
@@ -130,6 +133,9 @@
                         <button id="btn-topoloji-analiz-all" class="btn btn-primary">📐 Tüm Trafoları Özetle / Güç Üçgeni</button>
                     </div>
                 </div>
+
+                <!-- SCADA Ay Sonu Tahmin ve Risk Bildirim Barı -->
+                <div id="scada-forecast-banner" class="mb-lg"></div>
 
                 <!-- SCADA Özet Üst Bilgi Kartları -->
                 <div class="summary-cards" id="topoloji-summary-cards">
@@ -297,6 +303,14 @@
                         <option value="5">Mayıs 2025</option>
                         <option value="6">Haziran 2025</option>
                         <option value="7" selected>Temmuz 2025</option>
+                    </select>
+                    <select id="detay-yontem-select" class="select-lg">
+                        <option value="ensemble" selected>🚀 Topluluk Modeli (Ensemble)</option>
+                        <option value="holtWinters">📈 Holt-Winters Üçlü Üssel Düzeltme</option>
+                        <option value="regression">📉 Doğrusal Regresyon (Trend)</option>
+                        <option value="ortalama">⚖️ Ağırlıklı Ortalama</option>
+                        <option value="persistence">🔄 Geçen Hafta Tekrarı</option>
+                        <option value="gecenAy">📅 Geçen Ay Emsal</option>
                     </select>
                 </div>
             </div>

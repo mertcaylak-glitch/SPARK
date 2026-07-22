@@ -62,40 +62,73 @@ const GrafikModulu = (() => {
         const ctx = document.getElementById(canvasId)?.getContext('2d');
         if (!ctx) return;
 
-        const labels = trafoOzetleri.map(
-            (d) => d.trafo.adi.split(' – ')[0]
-        );
+        const labels = trafoOzetleri.map((d) => {
+            const parts = d.trafo.adi.split(' – ');
+            return parts.length > 1 ? `${parts[0]} (${parts[1]})` : d.trafo.adi;
+        });
         const values = trafoOzetleri.map(
             (d) => d.ozet?.kapasitifOran || 0
         );
+        const tahminValues = trafoOzetleri.map(
+            (d) => d.tahminOzet?.kapasitifOran !== undefined ? d.tahminOzet.kapasitifOran : null
+        );
+        const hasTahmin = tahminValues.some(v => v !== null);
+
         const isLight = document.body.getAttribute('data-theme') === 'light';
         const colors = values.map((v) => {
             const risk = HesaplamaModulu.riskSeviyesiBelirle(v, 'kapasitif');
             return risk.renk;
         });
 
+        const datasets = [
+            {
+                label: 'Mevcut Oran (%)',
+                data: values,
+                backgroundColor: colors.map((c) => isLight ? (c + 'CC') : (c + '30')),
+                borderColor: colors,
+                borderWidth: 2,
+                borderRadius: 6,
+                barThickness: hasTahmin ? 16 : 28,
+            }
+        ];
+
+        if (hasTahmin) {
+            const tColors = tahminValues.map(v => {
+                if (v === null) return '#8b5cf6';
+                return HesaplamaModulu.riskSeviyesiBelirle(v, 'kapasitif').renk;
+            });
+            datasets.push({
+                label: 'Ay Sonu Tahmini (%)',
+                data: tahminValues,
+                backgroundColor: tColors.map(c => isLight ? (c + 'E6') : (c + '50')),
+                borderColor: tColors,
+                borderWidth: 2,
+                borderRadius: 6,
+                barThickness: 16,
+            });
+        }
+
         _charts[canvasId] = new Chart(ctx, {
             type: 'bar',
             data: {
                 labels,
-                datasets: [
-                    {
-                        label: 'Kapasitif Oran (%)',
-                        data: values,
-                        backgroundColor: colors.map((c) => isLight ? (c + 'CC') : (c + '30')),
-                        borderColor: colors,
-                        borderWidth: 2,
-                        borderRadius: 6,
-                        barThickness: 28,
-                    },
-                ],
+                datasets,
             },
             options: {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
                 plugins: {
-                    legend: { display: false },
+                    legend: {
+                        display: hasTahmin,
+                        position: 'top',
+                        labels: {
+                            color: isLight ? '#1e293b' : '#cbd5e1',
+                            font: { size: 12, weight: '600', family: 'Inter' },
+                            usePointStyle: true,
+                            padding: 16
+                        }
+                    },
                     tooltip: {
                         backgroundColor: 'rgba(15, 23, 42, 0.95)',
                         borderColor: 'rgba(148, 163, 184, 0.2)',
@@ -103,8 +136,10 @@ const GrafikModulu = (() => {
                         cornerRadius: 8,
                         padding: 12,
                         callbacks: {
-                            label: (item) =>
-                                `Kapasitif Oran: %${item.parsed.x.toFixed(2)}`,
+                            label: (item) => {
+                                const dsLabel = item.dataset.label || '';
+                                return `${dsLabel}: %${item.parsed.x.toFixed(2)}`;
+                            },
                         },
                     },
                     annotation: {

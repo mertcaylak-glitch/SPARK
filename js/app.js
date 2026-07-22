@@ -20,6 +20,7 @@ const App = (() => {
         selectedTrafoId: null,
         selectedAy: 7,   // 1-12
         selectedYil: 2025,
+        selectedYontem: 'ensemble',
     };
 
     // ═══════════════════════════════════════════
@@ -159,7 +160,20 @@ const App = (() => {
                 runSenaryo(false);
             }
         });
-        document.getElementById('tahmin-yontem-select')?.addEventListener('change', () => {
+        const syncYontemSelects = (newYontem) => {
+            state.selectedYontem = newYontem;
+            const detayY = document.getElementById('detay-yontem-select');
+            const tahminY = document.getElementById('tahmin-yontem-select');
+            if (detayY && detayY.value !== newYontem) detayY.value = newYontem;
+            if (tahminY && tahminY.value !== newYontem) tahminY.value = newYontem;
+        };
+
+        document.getElementById('detay-yontem-select')?.addEventListener('change', (e) => {
+            syncYontemSelects(e.target.value);
+            renderTrafoDetay();
+        });
+        document.getElementById('tahmin-yontem-select')?.addEventListener('change', (e) => {
+            syncYontemSelects(e.target.value);
             renderTahmin();
             if (document.getElementById('senaryo-sonuc')?.style.display !== 'none') {
                 runSenaryo(false);
@@ -174,8 +188,154 @@ const App = (() => {
     // SCREEN 1: DASHBOARD
     // ═══════════════════════════════════════════
 
+    function renderForecastBanner(ozetler) {
+        if (!ozetler) {
+            const hamOzetler = HesaplamaModulu.tumTrafoOzetleri(state.selectedYil, state.selectedAy);
+            ozetler = hamOzetler.map(({ trafo, ozet }) => {
+                if (!ozet) return { trafo, ozet: null, tahminOzet: null };
+                let tahminOzet = null;
+                try {
+                    if (typeof TahminModulu !== 'undefined') {
+                        const tSonuc = TahminModulu.aySonuTahminiYap(trafo.id, state.selectedYil, state.selectedAy, state.selectedYontem || 'ensemble');
+                        if (tSonuc && tSonuc.tumVeriler) {
+                            tahminOzet = HesaplamaModulu.aylikOzetHesapla(tSonuc.tumVeriler);
+                        }
+                    }
+                } catch (e) {
+                    console.warn('Tahmin hatası:', e);
+                }
+                return { trafo, ozet, tahminOzet };
+            });
+        }
+        if (!ozetler || ozetler.length === 0) return;
+
+        let toplamTahminAktif = 0;
+        let toplamTahminKapasitif = 0;
+        let toplamMevcutAktif = 0;
+        let toplamMevcutKapasitif = 0;
+        let riskliTahminTrafolar = [];
+        let dikkatTahminTrafolar = [];
+
+        ozetler.forEach(({ trafo, ozet, tahminOzet }) => {
+            if (ozet) {
+                toplamMevcutAktif += ozet.toplamAktif;
+                toplamMevcutKapasitif += ozet.toplamKapasitif;
+            }
+            if (tahminOzet) {
+                toplamTahminAktif += tahminOzet.toplamAktif;
+                toplamTahminKapasitif += tahminOzet.toplamKapasitif;
+                if (tahminOzet.kapasitifOran >= HesaplamaModulu.SINIRLAR.kapasitif) {
+                    riskliTahminTrafolar.push({ trafo, tahminOzet, mevcutOzet: ozet });
+                } else if (tahminOzet.kapasitifOran >= 12) {
+                    dikkatTahminTrafolar.push({ trafo, tahminOzet, mevcutOzet: ozet });
+                }
+            }
+        });
+
+        const genelTahminOran = HesaplamaModulu.oranHesapla(toplamTahminKapasitif, toplamTahminAktif);
+        const genelMevcutOran = HesaplamaModulu.oranHesapla(toplamMevcutKapasitif, toplamMevcutAktif);
+
+        let bannerHTML = '';
+        if (riskliTahminTrafolar.length > 0) {
+            bannerHTML = `
+                <div class="forecast-alert-card alert-card-riskli">
+                    <div class="forecast-alert-left">
+                        <div class="forecast-alert-icon">🔴</div>
+                        <div class="forecast-alert-text">
+                            <h3>AY SONU PROJEKSİYONU & RİSK BİLDİRİMİ <span class="badge badge-tehlikeli" style="margin-left:8px;">🚨 Ceza Sınırı Aşım Riski!</span></h3>
+                            <p>
+                                Mevcut kullanım trendi devam ederse ay sonunda tesis geneli kapasitif oranı <strong>%${HesaplamaModulu.formatSayi(genelTahminOran)}</strong> seviyesine ulaşacaktır (Mevcut: %${HesaplamaModulu.formatSayi(genelMevcutOran)}).
+                                <br>⚠️ <strong>${riskliTahminTrafolar.length} adet trafoda (${riskliTahminTrafolar.map(t => `${t.trafo.adi}: <b>%${HesaplamaModulu.formatSayi(t.tahminOzet.kapasitifOran)}</b>`).join(', ')})</strong> ay sonuna kadar %15 yasal ceza sınırının aşılması beklenmektedir! Acil şönt reaktör devreye alma veya yük transferi önerilir.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="forecast-alert-right">
+                        <div class="forecast-alert-metric-box">
+                            <div class="forecast-alert-metric-label">Ay Sonu Tahmini</div>
+                            <div class="forecast-alert-metric-val" style="color: var(--color-danger)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
+                        </div>
+                        <button class="forecast-alert-btn btn btn-primary" onclick="App.navigateToTrafo('${riskliTahminTrafolar[0].trafo.id}')" style="background: var(--color-danger); border: none;">
+                            ⚡ Riskli Trafoyu İncele
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else if (dikkatTahminTrafolar.length > 0) {
+            bannerHTML = `
+                <div class="forecast-alert-card alert-card-dikkat">
+                    <div class="forecast-alert-left">
+                        <div class="forecast-alert-icon">🟡</div>
+                        <div class="forecast-alert-text">
+                            <h3>AY SONU PROJEKSİYONU & DİKKAT BİLDİRİMİ <span class="badge badge-dikkat" style="margin-left:8px;">⚠️ Uyarı Eşiği</span></h3>
+                            <p>
+                                Mevcut kullanım trendi devam ederse ay sonunda tesis geneli kapasitif oranı <strong>%${HesaplamaModulu.formatSayi(genelTahminOran)}</strong> seviyesine ulaşacaktır (Mevcut: %${HesaplamaModulu.formatSayi(genelMevcutOran)}).
+                                <br>🟡 Hiçbir trafo %15 ceza sınırını aşmayacak olsa da, <strong>${dikkatTahminTrafolar.length} adet trafoda (${dikkatTahminTrafolar.map(t => `${t.trafo.adi}: <b>%${HesaplamaModulu.formatSayi(t.tahminOzet.kapasitifOran)}</b>`).join(', ')})</strong> %12 uyarı sınırının üzerinde seyredilecektir.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="forecast-alert-right">
+                        <div class="forecast-alert-metric-box">
+                            <div class="forecast-alert-metric-label">Ay Sonu Tahmini</div>
+                            <div class="forecast-alert-metric-val" style="color: var(--color-warning)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
+                        </div>
+                        <button class="forecast-alert-btn btn btn-outline" onclick="App.navigateToTrafo('${dikkatTahminTrafolar[0].trafo.id}')">
+                            🔍 Detayları Gör
+                        </button>
+                    </div>
+                </div>
+            `;
+        } else {
+            bannerHTML = `
+                <div class="forecast-alert-card alert-card-guvenli">
+                    <div class="forecast-alert-left">
+                        <div class="forecast-alert-icon">🟢</div>
+                        <div class="forecast-alert-text">
+                            <h3>AY SONU PROJEKSİYONU & RİSK BİLDİRİMİ <span class="badge badge-guvenli" style="margin-left:8px;">✅ Tamamen Güvenli</span></h3>
+                            <p>
+                                Harika! Tesis geneli ay sonu tahmini kapasitif oranı <strong>%${HesaplamaModulu.formatSayi(genelTahminOran)}</strong> ile güvenli yeşil bölgede öngörülmektedir (Mevcut: %${HesaplamaModulu.formatSayi(genelMevcutOran)}).
+                                <br>🎉 Tüm trafoların ay sonuna kadar hem %15 yasal ceza sınırının hem de %12 uyarı eşiğinin çok altında kalarak konforlu bir şekilde ayı tamamlaması bekleniyor.
+                            </p>
+                        </div>
+                    </div>
+                    <div class="forecast-alert-right">
+                        <div class="forecast-alert-metric-box">
+                            <div class="forecast-alert-metric-label">Ay Sonu Tahmini</div>
+                            <div class="forecast-alert-metric-val" style="color: var(--color-success)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
+                        </div>
+                        <button class="forecast-alert-btn btn btn-outline" onclick="App.navigate('tahmin')">
+                            📈 Tahmin Detayları
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        const bannerCharts = document.getElementById('dashboard-forecast-banner');
+        const bannerScada = document.getElementById('scada-forecast-banner');
+        if (bannerCharts) bannerCharts.innerHTML = bannerHTML;
+        if (bannerScada) bannerScada.innerHTML = bannerHTML;
+    }
+
     function renderDashboard() {
-        const ozetler = HesaplamaModulu.tumTrafoOzetleri(state.selectedYil, state.selectedAy);
+        const hamOzetler = HesaplamaModulu.tumTrafoOzetleri(state.selectedYil, state.selectedAy);
+        const ozetler = hamOzetler.map(({ trafo, ozet }) => {
+            if (!ozet) return { trafo, ozet: null, tahminOzet: null };
+            let tahminOzet = null;
+            try {
+                if (typeof TahminModulu !== 'undefined') {
+                    const tSonuc = TahminModulu.aySonuTahminiYap(trafo.id, state.selectedYil, state.selectedAy, state.selectedYontem || 'ensemble');
+                    if (tSonuc && tSonuc.tumVeriler) {
+                        tahminOzet = HesaplamaModulu.aylikOzetHesapla(tSonuc.tumVeriler);
+                    }
+                }
+            } catch (e) {
+                console.warn('Tahmin hatası:', e);
+            }
+            return { trafo, ozet, tahminOzet };
+        });
+
+        // ── Ay Sonu Tahmin Barını Göster ──
+        renderForecastBanner(ozetler);
 
         // ── KPI Kartları ──
         let guvenliSayisi = 0, dikkatSayisi = 0, riskliSayisi = 0, tehlikeliSayisi = 0;
@@ -235,11 +395,16 @@ const App = (() => {
 
         // ── Trafo Kartları ──
         const gridEl = document.getElementById('trafo-grid');
-        gridEl.innerHTML = ozetler.map(({ trafo, ozet }, idx) => {
+        gridEl.innerHTML = ozetler.map(({ trafo, ozet, tahminOzet }, idx) => {
             if (!ozet) return '';
             const risk = ozet.kapasitifRisk;
             const ratio = Math.min((ozet.kapasitifOran / 20) * 100, 100);
             const limitPos = (15 / 20) * 100; // %15 sınırın bar üzerindeki pozisyonu
+
+            const tOran = tahminOzet ? tahminOzet.kapasitifOran : ozet.kapasitifOran;
+            const tRisk = tahminOzet ? tahminOzet.kapasitifRisk : risk;
+            const tahminIkon = tOran >= 15 ? '🚨' : (tOran >= 12 ? '⚠️' : '✅');
+            const tahminEtiket = tOran >= 15 ? 'Ceza Riski!' : (tOran >= 12 ? 'Dikkat' : 'Güvenli');
 
             return `
                 <div class="trafo-card risk-${risk.seviye}" style="animation-delay: ${idx * 0.06}s"
@@ -253,9 +418,16 @@ const App = (() => {
                     </div>
                     <div class="trafo-card-stats">
                         <div class="trafo-stat">
-                            <span class="trafo-stat-label">Kapasitif Oran</span>
+                            <span class="trafo-stat-label">Mevcut Oran</span>
                             <span class="trafo-stat-value highlight" style="color:${risk.renk}">
                                 %${HesaplamaModulu.formatSayi(ozet.kapasitifOran)}
+                            </span>
+                        </div>
+                        <div class="trafo-stat">
+                            <span class="trafo-stat-label">Ay Sonu Tahmini</span>
+                            <span class="trafo-stat-value highlight" style="color:${tRisk.renk}">
+                                %${HesaplamaModulu.formatSayi(tOran)}
+                                <span style="font-size: 13px; margin-left: 2px;" title="${tahminEtiket}">${tahminIkon}</span>
                             </span>
                         </div>
                         <div class="trafo-stat">
@@ -267,10 +439,6 @@ const App = (() => {
                         <div class="trafo-stat">
                             <span class="trafo-stat-label">Aktif Enerji</span>
                             <span class="trafo-stat-value">${HesaplamaModulu.formatEnerji(ozet.toplamAktif)}</span>
-                        </div>
-                        <div class="trafo-stat">
-                            <span class="trafo-stat-label">Veri Süresi</span>
-                            <span class="trafo-stat-value">${ozet.gunSayisi} Gün (${ozet.saatSayisi || ozet.gunSayisi*24} sa)</span>
                         </div>
                     </div>
                     <div class="ratio-meter">
@@ -481,7 +649,7 @@ const App = (() => {
             return `
                 <tr class="${rowClass}">
                     <td>${v.tarih}</td>
-                    <td>${trafo ? trafo.adi.split(' – ')[0] : v.trafoId}</td>
+                    <td>${trafo ? (trafo.adi.split(' – ').length > 1 ? trafo.adi.split(' – ')[0] + ' (' + trafo.adi.split(' – ')[1] + ')' : trafo.adi) : v.trafoId}</td>
                     <td class="text-right">${HesaplamaModulu.formatEnerji(v.aktifEnerji)}</td>
                     <td class="text-right">${HesaplamaModulu.formatEnerji(v.enduktifEnerji)}</td>
                     <td class="text-right">${HesaplamaModulu.formatEnerji(v.kapasitifEnerji)}</td>
@@ -522,8 +690,12 @@ const App = (() => {
             return;
         }
 
-        // Tahmin yap (ensemble yöntemiyle)
-        const tahminSonucu = TahminModulu.aySonuTahminiYap(trafoId, yil, ay, 'ensemble');
+        // Tahmin yap (seçilen yöntemle)
+        const yontem = document.getElementById('detay-yontem-select')?.value || state.selectedYontem || 'ensemble';
+        const selYontem = document.getElementById('detay-yontem-select');
+        if (selYontem && selYontem.value !== yontem) selYontem.value = yontem;
+
+        const tahminSonucu = TahminModulu.aySonuTahminiYap(trafoId, yil, ay, yontem);
         const tahminOzet = HesaplamaModulu.aylikOzetHesapla(tahminSonucu.tumVeriler);
         const tahminOranStr = tahminOzet ? HesaplamaModulu.formatSayi(tahminOzet.kapasitifOran) : '—';
         const tahminRisk = tahminOzet ? HesaplamaModulu.riskSeviyesiBelirle(tahminOzet.kapasitifOran, 'kapasitif') : null;
@@ -550,7 +722,7 @@ const App = (() => {
                 <div class="dc-unit">kWh (toplam)</div>
             </div>
             <div class="detay-card">
-                <div class="dc-label">Ay Sonu Tahmini</div>
+                <div class="dc-label">Ay Sonu Tahmini <span style="font-size:11px; font-weight:normal; color:var(--text-dim);">(${tahminSonucu.modelBilgi ? (tahminSonucu.modelBilgi.adi.split(' ')[1] || 'Model') : 'Ensemble'})</span></div>
                 <div class="dc-value" style="color:${tahminRisk ? tahminRisk.renk : 'inherit'}">%${tahminOranStr}</div>
                 <div class="dc-unit">${tahminRisk ? `<span class="badge badge-${tahminRisk.seviye}">${tahminRisk.ikon} ${tahminRisk.etiket}</span>` : ''}</div>
             </div>
@@ -648,7 +820,9 @@ const App = (() => {
         const selTrafo = document.getElementById('tahmin-trafo-select');
         if (selTrafo && selTrafo.value !== trafoId) selTrafo.value = trafoId;
 
-        const yontem = document.getElementById('tahmin-yontem-select')?.value || 'ensemble';
+        const yontem = document.getElementById('tahmin-yontem-select')?.value || state.selectedYontem || 'ensemble';
+        const selY = document.getElementById('tahmin-yontem-select');
+        if (selY && selY.value !== yontem) selY.value = yontem;
         const yil = state.selectedYil;
         const ay = state.selectedAy;
         const trafo = VeriModulu.getTrafo(trafoId);
@@ -754,7 +928,7 @@ const App = (() => {
             if (trafolar.length) state.selectedTrafoId = trafolar[0].id;
         }
         const trafoId = state.selectedTrafoId;
-        const yontem = document.getElementById('tahmin-yontem-select')?.value || 'ensemble';
+        const yontem = document.getElementById('tahmin-yontem-select')?.value || state.selectedYontem || 'ensemble';
         const senaryoTuru = document.getElementById('senaryo-tur').value;
         const baslangicTarihi = document.getElementById('senaryo-tarih').value;
         const miktar = parseInt(document.getElementById('senaryo-miktar').value);
@@ -790,9 +964,9 @@ const App = (() => {
         } else if (karsilastirma.iyilesmeSaglandi && karsilastirma.kapasitifOranSenaryo < 12) {
             resultText = `✅ Başarılı Müdahale! Oran %${HesaplamaModulu.formatSayi(Math.abs(karsilastirma.kapasitifFark))} puan düşürülerek %${HesaplamaModulu.formatSayi(karsilastirma.kapasitifOranSenaryo)} ile Güvenli Yeşil Bölgede konforlu bir seviyeye ulaştı.`;
         } else if (karsilastirma.iyilesmeSaglandi) {
-            resultText = `⚡ Oran %${HesaplamaModulu.formatSayi(Math.abs(karsilastirma.kapasitifFark))} puan iyileştirildi (${tasarrufKap > 0 ? tasarrufKap + ' kVArh azaltıldı' : eklenenAktif + ' kWh eklendi'}). Ancak %${HesaplamaModulu.formatSayi(karsilastirma.kapasitifOranSenaryo)} seviyesi hâlâ ${karsilastirma.kapasitifOranSenaryo >= 15 ? '%15 ceza sınırının üzerinde. Miktarı veya erken müdahale tarihini artırmanız önerilir!' : '%12 uyarı sınırına yakın.'}`;
+            resultText = `⚡ Oran %${HesaplamaModulu.formatSayi(Math.abs(karsilastirma.kapasitifFark))} puan iyileştirildi (${tasarrufKap > 0 ? tasarrufKap + ' kVArh azaltıldı' : eklenenAktif + ' kWh eklendi'}). Ancak %${HesaplamaModulu.formatSayi(karsilastirma.kapasitifOranSenaryo)} seviyesi hâlâ ${karsilastirma.kapasitifOranSenaryo >= 15 ? '%15 ceza sınırının üzerinde. Ceza sınırının altına inmek için günlük müdahale miktarını (kVArh) artırmanız veya müdahaleye ayın daha erken bir gününde başlamanız önerilir!' : '%12 uyarı sınırına yakın. Daha güvenli bir seviye için müdahale miktarını bir miktar yükseltebilirsiniz.'}`;
         } else {
-            resultText = `⚠️ Bu senaryo ile oranda iyileşme sağlanamadı. Lütfen miktar parametresini veya müdahale tarihini kontrol edin.`;
+            resultText = `⚠️ Bu senaryo ile oranda iyileşme sağlanamadı. Lütfen günlük müdahale miktarını (kVArh) artırmayı veya müdahaleye ayın daha erken bir gününde başlamayı deneyin.`;
         }
 
         document.getElementById('senaryo-karsilastirma').innerHTML = `
@@ -907,6 +1081,8 @@ const App = (() => {
         silVeri,
         switchDashboardView,
         toggleModelDetail,
+        renderForecastBanner,
+        renderDashboard,
         getState: () => state,
     };
 })();
