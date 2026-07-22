@@ -28,6 +28,9 @@ const App = (() => {
     // ═══════════════════════════════════════════
 
     function init() {
+        // Eğer sayfa ana index.html değilse (örneğin audit.html) DOM elementleri yoksa çık
+        if (!document.getElementById('current-date')) return;
+
         // Tarih gösterimi
         document.getElementById('current-date').textContent = formatDisplayDate(VeriModulu.BUGUN);
 
