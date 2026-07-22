@@ -1,10 +1,5 @@
 # 🌐 SPARK | Akıllı Şebeke Reaktif Güç Takip, Saatlik Tahmin ve Karar Destek Sistemi
 
-![SPARK Banner](https://img.shields.io/badge/SPARK-TEİAŞ%20Saatlik%20Veri%20Entegrasyonu-3b82f6?style=for-the-badge&logo=lightning&logoColor=white)
-![EPDK Uyumluluk](https://img.shields.io/badge/EPDK%20Mevzuat-End%C3%BCktif%20%2520%20%7C%20Kapasitif%20%2515-10b981?style=for-the-badge)
-![Mimari](https://img.shields.io/badge/Mimari-Mod%C3%BCler%20IIFE%20%2F%20Vanilla%20JS-8b5cf6?style=for-the-badge)
-![Veri Seti](https://img.shields.io/badge/Veri%20Seti-19.452%20Saatlik%20Kayıt%20(2025)-f59e0b?style=for-the-badge)
-
 **SPARK**, Türkiye Elektrik İletim A.Ş. (**TEİAŞ**) trafo merkezlerinin saatlik yük verilerini (`YYYY-MM-DD HH:mm`) kullanarak aktif, endüktif ve kapasitif enerji tüketimlerini gerçek zamanlı izleyen; EPDK reaktif ceza sınırlarına karşı yapay zeka/istatistiksel modellerle **saatlik ay sonu ceza projeksiyonu** sunan ve mühendislik müdahallerini simüle eden gelişmiş bir **SCADA ve Karar Destek Sistemidir**.
 
 ---
