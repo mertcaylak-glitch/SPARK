@@ -570,55 +570,166 @@ const App = (() => {
         reader.onload = (e) => {
             const text = e.target.result;
             const lines = text.split('\n').filter(l => l.trim());
-            let count = 0;
-            let skipped = 0;
+            if (lines.length < 2) {
+                showToast('CSV dosyası boş veya geçersiz.', 'error');
+                return;
+            }
+
             const trafolar = VeriModulu.getTrafolar();
             const trafoMap = new Set(trafolar.map(t => t.id));
+            let count = 0;
+            let skipped = 0;
 
-            // Başlık satırını atla
-            for (let i = 1; i < lines.length; i++) {
-                const parts = lines[i].split(/[,;\t]/).map(s => s.trim());
-                if (parts.length >= 5) {
-                    const [trafoId, tarih, aktifStr, enduktifStr, kapasitifStr] = parts;
-                    const aktif = parseInt(aktifStr, 10);
-                    const enduktif = parseInt(enduktifStr, 10);
-                    const kapasitif = parseInt(kapasitifStr, 10);
-                    const dateMatch = /^\d{4}-\d{2}-\d{2}$/.test(tarih);
+            // ── Format tespiti ──────────────────────────────────────────
+            // TEİAŞ geniş formatı: ilk sütun CREATED_AT, ardından "TRAFO ADI (P/Q)" çiftleri
+            const headerParts = lines[0].split(/[,;\t]/).map(s => s.trim());
+            const isTeıasFormat = headerParts[0].toUpperCase().includes('CREATED') ||
+                                  headerParts.some(h => /\(P\)|\(Q\)/i.test(h));
 
-                    if (!trafoMap.has(trafoId) || !dateMatch || isNaN(aktif) || isNaN(enduktif) || isNaN(kapasitif)) {
-                        skipped++;
-                        continue;
+            if (isTeıasFormat) {
+                // ── TEİAŞ Geniş Format ───────────────────────────────────
+                // Başlık sütunlarını trafo ID'si ve P/Q tipine eşle
+                // Sütun adı örn: "ÜMRANİYE TRA (P)" → UMR-TRA, aktif
+                //                "ÜMRANİYE TRA (Q)" → UMR-TRA, reaktif
+                //                "KARTAL TRA (P)"   → KRT-TRA, aktif
+                //                "KARTAL TRB (Q)"   → KRT-TRB, reaktif
+
+                // Sütun → Trafo eşlemesi: header metni ile trafo adını karşılaştır
+                // Önce basit anahtar kelime eşlemesi
+                const SUTUN_TRAFO_ESLEMESI = {
+                    'ÜMRANİYE TRA': 'UMR-TRA',
+                    'UMRANİYE TRA': 'UMR-TRA',
+                    'UMRANIYE TRA': 'UMR-TRA',
+                    'ÜMRANİYE TRB': 'UMR-TRB',
+                    'UMRANİYE TRB': 'UMR-TRB',
+                    'UMRANIYE TRB': 'UMR-TRB',
+                    'KARTAL TRA':   'KRT-TRA',
+                    'KARTAL TRB':   'KRT-TRB',
+                };
+
+                // Her trafo için P ve Q sütun indekslerini bul
+                const trafoSutunlar = {}; // { trafoId: { pIdx, qIdx } }
+
+                for (let col = 1; col < headerParts.length; col++) {
+                    const h = headerParts[col];
+                    const isPCol = /\(P\)/i.test(h);
+                    const isQCol = /\(Q\)/i.test(h);
+                    if (!isPCol && !isQCol) continue;
+
+                    // Sütun adından trafo adını çıkar: "ÜMRANİYE TRA (P)" → "ÜMRANİYE TRA"
+                    const baslik = h.replace(/\s*\(P\)\s*|\s*\(Q\)\s*/i, '').trim().toUpperCase();
+
+                    // Direkt eşleme dene
+                    let trafoId = SUTUN_TRAFO_ESLEMESI[baslik];
+
+                    // Direkt eşleme bulunamazsa trafo adlarıyla kısmi eşleme dene
+                    if (!trafoId) {
+                        for (const trafo of trafolar) {
+                            const trafoAdi = trafo.adi.toUpperCase().replace(/[–\-]/g, ' ').replace(/\s+/g, ' ');
+                            if (trafoAdi.includes(baslik) || baslik.includes(trafo.id)) {
+                                trafoId = trafo.id;
+                                break;
+                            }
+                        }
                     }
 
-                    const d = VeriModulu.parseDate(tarih);
-                    if (isNaN(d.getTime())) {
-                        skipped++;
-                        continue;
-                    }
+                    if (!trafoId) continue;
 
-                    VeriModulu.veriEkle({
-                        trafoId,
-                        tarih,
-                        aktifEnerji: aktif,
-                        enduktifEnerji: enduktif,
-                        kapasitifEnerji: kapasitif,
-                        haftaSonu: d.getDay() === 0 || d.getDay() === 6,
-                        tatil: false,
-                    });
-                    count++;
-                } else {
-                    skipped++;
+                    if (!trafoSutunlar[trafoId]) trafoSutunlar[trafoId] = { pIdx: -1, qIdx: -1 };
+                    if (isPCol) trafoSutunlar[trafoId].pIdx = col;
+                    if (isQCol) trafoSutunlar[trafoId].qIdx = col;
+                }
+
+                const eslesenTrafolar = Object.keys(trafoSutunlar);
+                if (eslesenTrafolar.length === 0) {
+                    showToast('TEİAŞ CSV formatı tanındı ancak hiçbir trafo eşlenemedi. Sütun başlıklarını kontrol edin.', 'error');
+                    return;
+                }
+
+                // Veri satırlarını işle
+                for (let i = 1; i < lines.length; i++) {
+                    const cols = lines[i].split(/[,;\t]/).map(s => s.trim());
+                    if (!cols[0]) { skipped++; continue; }
+
+                    // Tarih: "2025-07-01 00:00:00" → "2025-07-01 00:00"
+                    const tarihRaw = cols[0].replace(/:\d{2}$/, '').trim(); // saniye kısmını kaldır
+                    const tarihGun = tarihRaw.split(' ')[0]; // "2025-07-01"
+                    if (!/^\d{4}-\d{2}-\d{2}$/.test(tarihGun)) { skipped++; continue; }
+
+                    const d = VeriModulu.parseDate(tarihGun);
+                    if (isNaN(d.getTime())) { skipped++; continue; }
+
+                    for (const trafoId of eslesenTrafolar) {
+                        const { pIdx, qIdx } = trafoSutunlar[trafoId];
+                        if (pIdx < 0 || qIdx < 0) continue;
+
+                        const pMW = parseFloat(cols[pIdx]);
+                        const qMVAr = parseFloat(cols[qIdx]);
+                        if (isNaN(pMW) || isNaN(qMVAr)) { skipped++; continue; }
+
+                        // MW → kWh (saatlik ölçüm olduğu için ×1000)
+                        const aktifEnerji = Math.round(Math.abs(pMW) * 1000);
+                        // Q: negatif = kapasitif, pozitif = endüktif
+                        const enduktifEnerji = qMVAr > 0 ? Math.round(qMVAr * 1000) : 0;
+                        const kapasitifEnerji = qMVAr < 0 ? Math.round(Math.abs(qMVAr) * 1000) : 0;
+
+                        VeriModulu.veriEkle({
+                            trafoId,
+                            tarih: tarihRaw,           // "2025-07-01 00:00" ile saatlik kayıt
+                            aktifEnerji,
+                            enduktifEnerji,
+                            kapasitifEnerji,
+                            haftaSonu: d.getDay() === 0 || d.getDay() === 6,
+                            tatil: false,
+                        });
+                        count++;
+                    }
+                }
+
+            } else {
+                // ── SPARK Satır Formatı (eski) ───────────────────────────
+                // trafoId;tarih;aktif;endüktif;kapasitif
+                for (let i = 1; i < lines.length; i++) {
+                    const parts = lines[i].split(/[,;\t]/).map(s => s.trim());
+                    if (parts.length >= 5) {
+                        const [trafoId, tarih, aktifStr, enduktifStr, kapasitifStr] = parts;
+                        const aktif = parseInt(aktifStr, 10);
+                        const enduktif = parseInt(enduktifStr, 10);
+                        const kapasitif = parseInt(kapasitifStr, 10);
+                        const dateMatch = /^\d{4}-\d{2}-\d{2}/.test(tarih);
+
+                        if (!trafoMap.has(trafoId) || !dateMatch || isNaN(aktif) || isNaN(enduktif) || isNaN(kapasitif)) {
+                            skipped++;
+                            continue;
+                        }
+
+                        const d = VeriModulu.parseDate(tarih);
+                        if (isNaN(d.getTime())) { skipped++; continue; }
+
+                        VeriModulu.veriEkle({
+                            trafoId,
+                            tarih,
+                            aktifEnerji: aktif,
+                            enduktifEnerji: enduktif,
+                            kapasitifEnerji: kapasitif,
+                            haftaSonu: d.getDay() === 0 || d.getDay() === 6,
+                            tatil: false,
+                        });
+                        count++;
+                    } else {
+                        skipped++;
+                    }
                 }
             }
 
             if (count > 0) {
-                showToast(`${count} adet veri başarıyla yüklendi!${skipped > 0 ? ` (${skipped} satır atlandı)` : ''}`, 'success');
+                showToast(`${count} adet veri başarıyla yüklendi!${skipped > 0 ? ` (${skipped} satır/hücre atlandı)` : ''}`, 'success');
                 renderVeriTablosu();
             } else {
                 showToast(`Yüklenecek geçerli veri bulunamadı.${skipped > 0 ? ` (${skipped} hatalı satır atlandı)` : ''}`, 'error');
             }
         };
-        reader.readAsText(file);
+        reader.readAsText(file, 'UTF-8');
     }
 
     function renderVeriGiris() {
