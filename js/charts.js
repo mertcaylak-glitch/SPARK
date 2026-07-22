@@ -611,6 +611,38 @@ const GrafikModulu = (() => {
         });
     }
 
+    function updateTheme(isLight) {
+        const textColor = isLight ? '#334155' : '#94a3b8';
+        const gridColor = isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(148, 163, 184, 0.08)';
+        const tooltipBg = isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 23, 42, 0.95)';
+        const tooltipBorder = isLight ? 'rgba(15, 23, 42, 0.15)' : 'rgba(148, 163, 184, 0.2)';
+        const tooltipText = isLight ? '#0f172a' : '#fff';
+
+        Chart.defaults.color = textColor;
+        Chart.defaults.borderColor = gridColor;
+
+        Object.values(_charts).forEach((chart) => {
+            if (!chart || !chart.options) return;
+            if (chart.options.scales) {
+                Object.values(chart.options.scales).forEach((scale) => {
+                    if (scale.ticks) scale.ticks.color = textColor;
+                    if (scale.grid) scale.grid.color = gridColor;
+                    if (scale.title) scale.title.color = textColor;
+                });
+            }
+            if (chart.options.plugins && chart.options.plugins.tooltip) {
+                chart.options.plugins.tooltip.backgroundColor = tooltipBg;
+                chart.options.plugins.tooltip.borderColor = tooltipBorder;
+                chart.options.plugins.tooltip.titleColor = tooltipText;
+                chart.options.plugins.tooltip.bodyColor = tooltipText;
+            }
+            if (chart.options.plugins && chart.options.plugins.legend && chart.options.plugins.legend.labels) {
+                chart.options.plugins.legend.labels.color = textColor;
+            }
+            chart.update('none');
+        });
+    }
+
     // ─── Public API ───
     return {
         createDashboardBarChart,
@@ -619,5 +651,6 @@ const GrafikModulu = (() => {
         createDailyBarChart,
         createScenarioChart,
         destroyChart,
+        updateTheme,
     };
 })();

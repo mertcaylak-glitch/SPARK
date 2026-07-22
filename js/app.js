@@ -30,6 +30,9 @@ const App = (() => {
         // Tarih gösterimi
         document.getElementById('current-date').textContent = formatDisplayDate(VeriModulu.BUGUN);
 
+        // Tema yönetimi
+        initTheme();
+
         // Varsayılan trafo
         state.selectedTrafoId = VeriModulu.getTrafolar()[0].id;
 
@@ -837,6 +840,43 @@ const App = (() => {
             toast.classList.add('removing');
             setTimeout(() => toast.remove(), 300);
         }, 3000);
+    }
+
+    // ═══════════════════════════════════════════
+    // THEME MANAGEMENT
+    // ═══════════════════════════════════════════
+
+    function initTheme() {
+        const savedTheme = localStorage.getItem('spark_theme') || 'dark';
+        applyTheme(savedTheme);
+
+        const toggleBtn = document.getElementById('btn-theme-toggle');
+        if (toggleBtn) {
+            toggleBtn.addEventListener('click', () => {
+                const currentTheme = document.body.getAttribute('data-theme') || 'dark';
+                const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+                applyTheme(newTheme);
+            });
+        }
+    }
+
+    function applyTheme(themeName) {
+        document.body.setAttribute('data-theme', themeName);
+        localStorage.setItem('spark_theme', themeName);
+
+        const iconEl = document.getElementById('theme-icon');
+        const textEl = document.getElementById('theme-text');
+        if (iconEl) iconEl.textContent = themeName === 'light' ? '🌙' : '☀️';
+        if (textEl) textEl.textContent = themeName === 'light' ? 'Koyu' : 'Açık';
+
+        if (typeof GrafikModulu !== 'undefined' && GrafikModulu.updateTheme) {
+            GrafikModulu.updateTheme(themeName === 'light');
+        }
+
+        const modal = document.getElementById('power-triangle-modal');
+        if (modal && modal.classList.contains('active') && typeof TopolojiModulu !== 'undefined' && state.selectedTrafoId) {
+            TopolojiModulu.openPowerTriangleModal(state.selectedTrafoId);
+        }
     }
 
     // ═══════════════════════════════════════════

@@ -341,8 +341,13 @@ const TopolojiModulu = (() => {
 
         ctx.clearRect(0, 0, W, H);
 
+        const isLight = document.body.getAttribute('data-theme') === 'light';
+        const gridColor = isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(148, 163, 184, 0.08)';
+        const axisColor = isLight ? 'rgba(15, 23, 42, 0.3)' : 'rgba(148, 163, 184, 0.3)';
+        const phiTextColor = isLight ? '#1e293b' : '#cbd5e1';
+
         // Arka Plan Grid (SCADA Radar Görünümü)
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.08)';
+        ctx.strokeStyle = gridColor;
         ctx.lineWidth = 1;
         for (let x = 0; x <= W; x += 30) {
             ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke();
@@ -356,7 +361,7 @@ const TopolojiModulu = (() => {
         const Y0 = 170;
 
         // Eksenler (X ve Y)
-        ctx.strokeStyle = 'rgba(148, 163, 184, 0.3)';
+        ctx.strokeStyle = axisColor;
         ctx.lineWidth = 1.5;
         ctx.beginPath(); ctx.moveTo(20, Y0); ctx.lineTo(W - 20, Y0); ctx.stroke(); // X ekseni
         ctx.beginPath(); ctx.moveTo(X0, 20); ctx.lineTo(X0, H - 20); ctx.stroke(); // Y ekseni
@@ -414,7 +419,7 @@ const TopolojiModulu = (() => {
         ctx.strokeStyle = 'rgba(16, 185, 129, 0.7)';
         ctx.lineWidth = 1.5;
         ctx.stroke();
-        ctx.fillStyle = '#cbd5e1';
+        ctx.fillStyle = phiTextColor;
         ctx.font = '11px Inter, sans-serif';
         ctx.fillText('φ', X0 + 52, Y0 + (netY > Y0 ? 12 : -6));
     }
