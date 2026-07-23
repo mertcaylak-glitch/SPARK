@@ -62,6 +62,34 @@ const GrafikModulu = (() => {
         const ctx = document.getElementById(canvasId)?.getContext('2d');
         if (!ctx) return;
 
+        // Özel Plugin: Chart.js bar grafiği borderDash desteklemediği için manuel Canvas çizimi
+        const dashedBarPlugin = {
+            id: 'dashedBarPlugin',
+            afterDatasetDraw(chart, args) {
+                const { ctx } = chart;
+                const dataset = chart.data.datasets[args.index];
+                
+                if (dataset.customDashedBorder) {
+                    const meta = chart.getDatasetMeta(args.index);
+                    ctx.save();
+                    meta.data.forEach((bar, index) => {
+                        const left = Math.min(bar.x, bar.base);
+                        const right = Math.max(bar.x, bar.base);
+                        const width = right - left;
+                        const top = bar.y - (bar.height / 2);
+                        
+                        ctx.beginPath();
+                        ctx.setLineDash(dataset.customDashedBorder);
+                        ctx.lineWidth = dataset.customBorderWidth || 2;
+                        ctx.strokeStyle = Array.isArray(dataset.borderColor) ? dataset.borderColor[index] : dataset.borderColor;
+                        ctx.rect(left, top, width, bar.height);
+                        ctx.stroke();
+                    });
+                    ctx.restore();
+                }
+            }
+        };
+
         const labels = trafoOzetleri.map((d) => {
             const parts = d.trafo.adi.split(' – ');
             return parts.length > 1 ? `${parts[0]} (${parts[1]})` : d.trafo.adi;
@@ -102,14 +130,16 @@ const GrafikModulu = (() => {
                 data: tahminValues,
                 backgroundColor: tColors.map(c => isLight ? (c + 'E6') : (c + '50')),
                 borderColor: tColors,
-                borderWidth: 2,
-                borderRadius: 6,
+                borderWidth: 0, // Chart.js'in kendi düz çizimini iptal ediyoruz
+                customBorderWidth: 2, // Plugin için
+                customDashedBorder: [6, 4], // Plugin için
                 barThickness: 16,
             });
         }
 
         _charts[canvasId] = new Chart(ctx, {
             type: 'bar',
+            plugins: [dashedBarPlugin],
             data: {
                 labels,
                 datasets,
@@ -125,8 +155,20 @@ const GrafikModulu = (() => {
                         labels: {
                             color: isLight ? '#1e293b' : '#cbd5e1',
                             font: { size: 12, weight: '600', family: 'Inter' },
-                            usePointStyle: true,
-                            padding: 16
+                            padding: 16,
+                            generateLabels: (chart) => {
+                                const isLt = document.body.getAttribute('data-theme') === 'light';
+                                return chart.data.datasets.map((dataset, i) => ({
+                                    text: dataset.label,
+                                    fillStyle: i === 1 ? 'transparent' : (isLt ? 'rgba(226, 232, 240, 0.5)' : 'rgba(30, 41, 59, 0.5)'),
+                                    strokeStyle: isLt ? '#64748b' : '#94a3b8',
+                                    lineWidth: 2,
+                                    lineDash: dataset.customDashedBorder || [],
+                                    hidden: !chart.isDatasetVisible(i),
+                                    datasetIndex: i,
+                                    fontColor: isLt ? '#1e293b' : '#cbd5e1'
+                                }));
+                            }
                         }
                     },
                     tooltip: {

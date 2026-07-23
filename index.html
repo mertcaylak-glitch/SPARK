@@ -222,11 +222,14 @@
                     <form id="veri-giris-form" class="veri-form">
                         <div class="form-group">
                             <label for="input-trafo">Trafo Seçin</label>
-                            <select id="input-trafo" required></select>
+                            <div style="display: flex; gap: 8px;">
+                                <select id="input-trafo" required style="flex: 1;"></select>
+                                <button type="button" class="btn btn-outline" id="btn-open-yeni-trafo">➕ Yeni</button>
+                            </div>
                         </div>
                         <div class="form-group">
                             <label for="input-tarih">Tarih</label>
-                            <input type="date" id="input-tarih" required>
+                            <input type="datetime-local" id="input-tarih" required>
                         </div>
                         <div class="form-row">
                             <div class="form-group">
@@ -489,6 +492,39 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- ═══ Yeni Trafo Ekle Modalı ═══ -->
+    <div class="scada-modal-overlay" id="yeni-trafo-modal" style="display: none; z-index: 9999;">
+        <div class="scada-modal-card" style="max-width: 500px;">
+            <div class="scada-modal-header">
+                <div>
+                    <h3>➕ Yeni Trafo Ekle</h3>
+                </div>
+                <button class="modal-close-btn" id="btn-close-yeni-trafo">✕</button>
+            </div>
+            <div class="scada-modal-body" style="padding-top: 0;">
+                <form id="yeni-trafo-form" style="display: flex; flex-direction: column; gap: 16px;">
+                    <div class="form-group">
+                        <label for="new-trafo-id">Trafo ID (Kısa Kod)</label>
+                        <input type="text" id="new-trafo-id" required placeholder="Ör: YENI-TR" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(30, 41, 59, 0.5); color: #fff;">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-trafo-adi">Trafo Adı</label>
+                        <input type="text" id="new-trafo-adi" required placeholder="Ör: Yeni Trafo Merkezi" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(30, 41, 59, 0.5); color: #fff;">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-trafo-bolge">Bölgesi</label>
+                        <input type="text" id="new-trafo-bolge" required placeholder="Ör: Kadıköy" style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(30, 41, 59, 0.5); color: #fff;">
+                    </div>
+                    <div class="form-group">
+                        <label for="new-trafo-guc">Gücü (MVA)</label>
+                        <input type="number" id="new-trafo-guc" value="100" required style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid rgba(148, 163, 184, 0.3); background: rgba(30, 41, 59, 0.5); color: #fff;">
+                    </div>
+                    <button type="submit" class="btn btn-primary" style="margin-top: 8px;">KAYDET</button>
+                </form>
             </div>
         </div>
     </div>

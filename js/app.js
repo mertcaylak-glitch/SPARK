@@ -501,7 +501,8 @@ const App = (() => {
             e.preventDefault();
 
             const trafoId = document.getElementById('input-trafo').value;
-            const tarih = document.getElementById('input-tarih').value;
+            let tarih = document.getElementById('input-tarih').value;
+            tarih = tarih.replace('T', ' '); // YYYY-MM-DD HH:mm formatı için T'yi boşluğa çevir
             const aktif = parseInt(document.getElementById('input-aktif').value);
             const enduktif = parseInt(document.getElementById('input-enduktif').value);
             const kapasitif = parseInt(document.getElementById('input-kapasitif').value);
@@ -563,6 +564,51 @@ const App = (() => {
                 }
             });
         }
+
+        // Yeni Trafo Ekleme Modalı Kontrolleri
+        const btnOpenYeniTrafo = document.getElementById('btn-open-yeni-trafo');
+        const btnCloseYeniTrafo = document.getElementById('btn-close-yeni-trafo');
+        const modalYeniTrafo = document.getElementById('yeni-trafo-modal');
+        const formYeniTrafo = document.getElementById('yeni-trafo-form');
+
+        if (btnOpenYeniTrafo && modalYeniTrafo) {
+            btnOpenYeniTrafo.addEventListener('click', () => {
+                modalYeniTrafo.style.display = 'flex';
+            });
+        }
+        if (btnCloseYeniTrafo && modalYeniTrafo) {
+            btnCloseYeniTrafo.addEventListener('click', () => {
+                modalYeniTrafo.style.display = 'none';
+            });
+        }
+        if (formYeniTrafo) {
+            formYeniTrafo.addEventListener('submit', (e) => {
+                e.preventDefault();
+                const id = document.getElementById('new-trafo-id').value.trim().toUpperCase();
+                const adi = document.getElementById('new-trafo-adi').value.trim();
+                const bolge = document.getElementById('new-trafo-bolge').value.trim();
+                const guc = parseInt(document.getElementById('new-trafo-guc').value, 10);
+
+                if (id && adi) {
+                    VeriModulu.trafoEkle({
+                        id: id,
+                        adi: adi,
+                        bolge: bolge || 'Bilinmiyor',
+                        tip: 'Bilinmiyor',
+                        kapasite: isNaN(guc) ? 100 : guc,
+                        aciklama: 'Manuel eklendi.'
+                    });
+                    
+                    showToast('Yeni trafo başarıyla eklendi.', 'success');
+                    modalYeniTrafo.style.display = 'none';
+                    formYeniTrafo.reset();
+                    
+                    populateTrafoSelects();
+                    const select = document.getElementById('input-trafo');
+                    if (select) select.value = id;
+                }
+            });
+        }
     }
 
     function handleCSVUpload(file) {
@@ -570,10 +616,43 @@ const App = (() => {
         reader.onload = (e) => {
             const text = e.target.result;
             const lines = text.split('\n').filter(l => l.trim());
-            let count = 0;
-            let skipped = 0;
             const trafolar = VeriModulu.getTrafolar();
             const trafoMap = new Set(trafolar.map(t => t.id));
+
+            // PASS 1: Detect new trafos
+            const yeniTrafolar = new Set();
+            for (let i = 1; i < lines.length; i++) {
+                const parts = lines[i].split(/[,;\t]/).map(s => s.trim());
+                if (parts.length >= 5) {
+                    const trafoId = parts[0];
+                    if (!trafoMap.has(trafoId)) {
+                        yeniTrafolar.add(trafoId);
+                    }
+                }
+            }
+
+            if (yeniTrafolar.size > 0) {
+                const onay = confirm(`CSV dosyasında daha önce karşılaşılmamış şu yeni trafolar bulundu:\n${Array.from(yeniTrafolar).join(', ')}\n\nBunları sisteme otomatik olarak eklemek istiyor musunuz?`);
+                if (onay) {
+                    yeniTrafolar.forEach(id => {
+                        VeriModulu.trafoEkle({
+                            id: id,
+                            adi: id,
+                            bolge: 'Bilinmiyor',
+                            tip: 'Bilinmiyor',
+                            kapasite: 100,
+                            aciklama: 'CSV\'den otomatik eklendi.'
+                        });
+                        trafoMap.add(id);
+                    });
+                    populateTrafoSelects();
+                    showToast('Yeni trafolar sisteme kaydedildi.', 'success');
+                }
+            }
+
+            // PASS 2: Parse normally
+            let count = 0;
+            let skipped = 0;
 
             // Başlık satırını atla
             for (let i = 1; i < lines.length; i++) {
@@ -583,7 +662,7 @@ const App = (() => {
                     const aktif = parseInt(aktifStr, 10);
                     const enduktif = parseInt(enduktifStr, 10);
                     const kapasitif = parseInt(kapasitifStr, 10);
-                    const dateMatch = /^\d{4}-\d{2}-\d{2}$/.test(tarih);
+                    const dateMatch = /^\d{4}-\d{2}-\d{2}( \d{2}:\d{2})?$/.test(tarih);
 
                     if (!trafoMap.has(trafoId) || !dateMatch || isNaN(aktif) || isNaN(enduktif) || isNaN(kapasitif)) {
                         skipped++;
@@ -622,8 +701,9 @@ const App = (() => {
     }
 
     function renderVeriGiris() {
-        // Tarih varsayılan değeri
-        document.getElementById('input-tarih').value = VeriModulu.BUGUN;
+        // Tarih varsayılan değeri (saatlik formatta)
+        let varsayilan = VeriModulu.BUGUN_SAATLIK || '2025-07-22 14:00';
+        document.getElementById('input-tarih').value = varsayilan.replace(' ', 'T');
         renderVeriTablosu();
     }
 

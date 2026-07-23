@@ -79,6 +79,31 @@ const VeriModulu = (() => {
         },
     ];
 
+    let _ekTrafolar = [];
+    try {
+        const kayitli = localStorage.getItem('spark_ek_trafolar');
+        if (kayitli) {
+            _ekTrafolar = JSON.parse(kayitli);
+            if (Array.isArray(_ekTrafolar)) {
+                _ekTrafolar.forEach(t => TRAFOLAR.push(t));
+            }
+        }
+    } catch (e) {
+        console.warn('Ek trafolar yüklenemedi:', e);
+    }
+
+    function trafoEkle(trafoObj) {
+        if (!TRAFOLAR.find(t => t.id === trafoObj.id)) {
+            TRAFOLAR.push(trafoObj);
+            _ekTrafolar.push(trafoObj);
+            try {
+                localStorage.setItem('spark_ek_trafolar', JSON.stringify(_ekTrafolar));
+            } catch (e) {
+                console.error('Trafo kaydedilemedi:', e);
+            }
+        }
+    }
+
     // ─── Veri Aralığı Parametreleri ───
     const BASLANGIC_TARIH = '2025-01-01';
     const BITIS_TARIH = '2025-07-22 14:00'; // Gerçek Temmuz saatlik son kayıt tarihi
@@ -19597,11 +19622,20 @@ const VeriModulu = (() => {
             veriler.forEach(v => {
                 // Doğrudan iç veri yapılarına ekle (tekrar kaydetmeye gerek yok)
                 _ekVeriler.push(v);
-                _tumVeriler.push(v);
                 if (!_veriMap.has(v.trafoId)) {
                     _veriMap.set(v.trafoId, []);
                 }
-                _veriMap.get(v.trafoId).push(v);
+                const trafoVerileri = _veriMap.get(v.trafoId);
+                const mevcutIdx = trafoVerileri.findIndex(mevcut => mevcut.tarih === v.tarih);
+                
+                if (mevcutIdx !== -1) {
+                    trafoVerileri[mevcutIdx] = v;
+                    const genelIdx = _tumVeriler.findIndex(genel => genel.trafoId === v.trafoId && genel.tarih === v.tarih);
+                    if (genelIdx !== -1) _tumVeriler[genelIdx] = v;
+                } else {
+                    trafoVerileri.push(v);
+                    _tumVeriler.push(v);
+                }
             });
             // Tüm trafoların verilerini tarihe göre sırala
             _veriMap.forEach((veriler) => {
@@ -19671,6 +19705,7 @@ const VeriModulu = (() => {
     return {
         getTrafolar: () => TRAFOLAR,
         getTrafo: (id) => TRAFOLAR.find((t) => t.id === id),
+        trafoEkle,
         getTumVeriler: () => _tumVeriler,
         getTrafoVerileri: (trafoId) => _veriMap.get(trafoId) || [],
         getAylikVeriler: (trafoId, yil, ay) => {
