@@ -105,7 +105,7 @@ def generate_measurement_values(db: Session, trafo: models.Transformer, target_t
             share = 500.0 / orig_weight
         else:
             orig_t_id = str(mapping["trafo"])
-            orig_weight = ORIGINAL_TRAFO_WEIGHTS.get(orig_t_id, 1.0)
+            orig_weight = ORIGINAL_TRAFO_WEIGHTS.get(orig_t_id, 1000.0)
             share = float(mapping["weight"]) / orig_weight if orig_weight > 0 else 0
             
         b_act, b_ind, b_cap = get_trafo_baseline(orig_t_id)

@@ -39,44 +39,44 @@ class GridTopologyService:
                 return {"error": "Network not loaded or pandapower not installed."}
                 
             # Extract basic info
-        num_buses = len(self.net.bus)
-        num_lines = len(self.net.line)
-        num_loads = len(self.net.load)
-        num_sgen = len(self.net.sgen)
-        num_shunts = len(self.net.shunt) if 'shunt' in self.net else 0
-        num_switches = len(self.net.switch) if 'switch' in self.net else 0
+            num_buses = len(self.net.bus)
+            num_lines = len(self.net.line)
+            num_loads = len(self.net.load)
+            num_sgen = len(self.net.sgen)
+            num_shunts = len(self.net.shunt) if 'shunt' in self.net else 0
+            num_switches = len(self.net.switch) if 'switch' in self.net else 0
 
-        # High level summary
-        res_bus = self.net.res_bus
-        res_line = self.net.res_line
-        
-        max_vm_pu = res_bus['vm_pu'].max() if not res_bus.empty else 0
-        min_vm_pu = res_bus['vm_pu'].min() if not res_bus.empty else 0
-        max_loading = res_line['loading_percent'].max() if not res_line.empty else 0
-        
-        # Replace NaN with None for JSON serialization
-        def replace_nan(val):
-            return None if pd.isna(val) else val
+            # High level summary
+            res_bus = self.net.res_bus
+            res_line = self.net.res_line
+            
+            max_vm_pu = res_bus['vm_pu'].max() if not res_bus.empty else 0
+            min_vm_pu = res_bus['vm_pu'].min() if not res_bus.empty else 0
+            max_loading = res_line['loading_percent'].max() if not res_line.empty else 0
+            
+            # Replace NaN with None for JSON serialization
+            def replace_nan(val):
+                return None if pd.isna(val) else val
 
-        state = {
-            "network_code": self.sb_code,
-            "elements_count": {
-                "buses": num_buses,
-                "lines": num_lines,
-                "loads": num_loads,
-                "sgens": num_sgen,
-                "shunts": num_shunts,
-                "switches": num_switches
-            },
-            "system_health": {
-                "max_voltage_pu": replace_nan(max_vm_pu),
-                "min_voltage_pu": replace_nan(min_vm_pu),
-                "max_line_loading_percent": replace_nan(max_loading)
-            },
-            "switches": json.loads(self.net.switch[['bus', 'element', 'et', 'closed']].head(50).to_json(orient='records')),
-            "shunts": json.loads(self.net.shunt[['bus', 'p_mw', 'q_mvar', 'in_service']].to_json(orient='records')) if num_shunts > 0 else []
-        }
-        return state
+            state = {
+                "network_code": self.sb_code,
+                "elements_count": {
+                    "buses": num_buses,
+                    "lines": num_lines,
+                    "loads": num_loads,
+                    "sgens": num_sgen,
+                    "shunts": num_shunts,
+                    "switches": num_switches
+                },
+                "system_health": {
+                    "max_voltage_pu": replace_nan(max_vm_pu),
+                    "min_voltage_pu": replace_nan(min_vm_pu),
+                    "max_line_loading_percent": replace_nan(max_loading)
+                },
+                "switches": json.loads(self.net.switch[['bus', 'element', 'et', 'closed']].head(50).to_json(orient='records')),
+                "shunts": json.loads(self.net.shunt[['bus', 'p_mw', 'q_mvar', 'in_service']].to_json(orient='records')) if num_shunts > 0 else []
+            }
+            return state
 
     def simulate_action(self, element_type: str, element_id: int, action: str):
         with self.lock:

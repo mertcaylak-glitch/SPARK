@@ -187,7 +187,7 @@ const DashboardUI = (() => {
                                     <div class="forecast-alert-metric-val" style="color: var(--color-success); font-size: 16px;">%${HesaplamaModulu.formatSayi(genelTahminEndOran)}</div>
                                 </div>
                             </div>
-                            <button class="forecast-alert-btn btn btn-outline" onclick="event.stopPropagation(); App.navigate('tahmin')">
+                            <button class="forecast-alert-btn btn btn-outline" onclick="event.stopPropagation(); App.navigateToTrafo('${App.escapeHTML(ozetler[0].trafo.id)}')">
                                 Tahmin Detayları
                             </button>
                         </div>

@@ -72,58 +72,6 @@ const GrafikModulu = (() => {
         const ctx = document.getElementById(canvasId)?.getContext('2d');
         if (!ctx) return;
 
-        // Özel Plugin: Chart.js bar grafiği borderDash desteklemediği için manuel Canvas çizimi
-        // Ayrıca bu plugin ile dış çerçeveye parıldama (glow) efekti de ekliyoruz.
-        const dashedBarPlugin = {
-            id: 'dashedBarPlugin',
-            afterDatasetDraw(chart, args) {
-                const { ctx } = chart;
-                const dataset = chart.data.datasets[args.index];
-                
-                if (dataset.customDashedBorder) {
-                    const meta = chart.getDatasetMeta(args.index);
-                    ctx.save();
-                    meta.data.forEach((bar, index) => {
-                        if (dataset.data[index] === null) return;
-                        
-                        const left = Math.min(bar.x, bar.base);
-                        const right = Math.max(bar.x, bar.base);
-                        const width = right - left;
-                        const top = bar.y - (bar.height / 2);
-                        
-                        ctx.beginPath();
-                        ctx.setLineDash(dataset.customDashedBorder);
-                        ctx.lineWidth = dataset.customBorderWidth || 2;
-                        
-                        const strokeColor = Array.isArray(dataset.borderColor) ? dataset.borderColor[index] : dataset.borderColor;
-                        ctx.strokeStyle = strokeColor;
-                        
-                        // Hafif dış parlama (neon glow) efekti
-                        ctx.shadowColor = strokeColor;
-                        ctx.shadowBlur = 8;
-                        ctx.shadowOffsetX = 0;
-                        ctx.shadowOffsetY = 0;
-                        
-                        if (typeof ctx.roundRect === 'function') {
-                            ctx.roundRect(left, top, width, bar.height, [0, 8, 8, 0]);
-                        } else {
-                            ctx.rect(left, top, width, bar.height);
-                        }
-                        ctx.stroke();
-                        
-                        // Gölgeyi sıfırla ki diğer çizimlere etki etmesin
-                        ctx.shadowBlur = 0;
-                        
-                        // Şeffaf bir dolgu (sadece tahmin barının uç kısmı için hoş bir görünüm verebilir)
-                        ctx.fillStyle = chart.canvas.ownerDocument.body.getAttribute('data-theme') === 'light' 
-                            ? strokeColor + '0A' // %4 opaklık
-                            : strokeColor + '14'; // %8 opaklık
-                        ctx.fill();
-                    });
-                    ctx.restore();
-                }
-            }
-        };
 
         const labels = trafoOzetleri.map((d) => {
             const parts = d.trafo.adi.split(' – ');

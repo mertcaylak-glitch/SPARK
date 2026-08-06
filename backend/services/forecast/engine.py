@@ -290,6 +290,7 @@ def _process_single_transformer_batch(t_id, methods, steps):
         db.close()
 
 _CURRENTLY_FORECASTING = set()
+_CURRENTLY_FORECASTING_LOCK = threading.Lock()
 
 def run_weekly_batch_forecast(transformer_ids=None):
     from db.database import SessionLocal
@@ -307,15 +308,22 @@ def run_weekly_batch_forecast(transformer_ids=None):
     steps = 720
     
     for t_id in t_ids:
-        if t_id in _CURRENTLY_FORECASTING:
+        with _CURRENTLY_FORECASTING_LOCK:
+            if t_id in _CURRENTLY_FORECASTING:
+                already_forecasting = True
+            else:
+                already_forecasting = False
+                _CURRENTLY_FORECASTING.add(t_id)
+        
+        if already_forecasting:
             logger.info(f"{t_id} is already being forecasted by another thread, skipping.")
             continue
         
-        _CURRENTLY_FORECASTING.add(t_id)
         try:
             _process_single_transformer_batch(t_id, methods, steps)
         finally:
-            _CURRENTLY_FORECASTING.remove(t_id)
+            with _CURRENTLY_FORECASTING_LOCK:
+                _CURRENTLY_FORECASTING.discard(t_id)
         
     logger.info("Weekly batch forecast basariyla tamamlandi.")
 

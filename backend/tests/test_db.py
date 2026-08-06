@@ -1,5 +1,5 @@
 from db.database import SessionLocal
-from models import ForecastMeasurement, Measurement
+from db.models import ForecastMeasurement, Measurement
 import datetime
 import calendar
 db = SessionLocal()

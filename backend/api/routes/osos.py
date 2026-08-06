@@ -77,14 +77,7 @@ def fetch_osos_measurements(
     ]
     return JSONResponse(content=res)
 
-def invalidate_caches_for_transformer(transformer_id: str):
-    from services.forecast_service import FORECAST_CACHE, TRAINED_MODELS_CACHE
-    forecast_keys = [k for k in FORECAST_CACHE.keys() if k.startswith(transformer_id)]
-    for k in forecast_keys:
-        del FORECAST_CACHE[k]
-    model_keys = [k for k in TRAINED_MODELS_CACHE.keys() if k.startswith(transformer_id)]
-    for k in model_keys:
-        del TRAINED_MODELS_CACHE[k]
+
 
 @router.post("/measurements", response_model=schemas.Measurement)
 def add_osos_measurement(

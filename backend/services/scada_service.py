@@ -54,17 +54,27 @@ def is_feeder_energized(feeder_id: str) -> bool:
     return SCADA_BREAKER_STATES.get(breaker_key, True)
 
 def toggle_breaker(db: Session, breaker_id: str, target_state: bool, trafo_id: str = "UMR-TRA", reason: str = "SCADA Operatör Manevrası"):
-    old_state = SCADA_BREAKER_STATES.get(breaker_id, False)
-    SCADA_BREAKER_STATES[breaker_id] = target_state
+    is_static = breaker_id in SCADA_BREAKER_STATES
+    is_reactor = False
+    reactor = None
     
-    # Check if this breaker belongs to a reactor and update its status in the DB
+    # Check if this breaker belongs to a reactor
     if breaker_id.endswith("-q1"):
-        base_asset_id = breaker_id[:-3] # e.g. 'sis-tra-r1'
+        base_asset_id = breaker_id[:-3]
         from sqlalchemy import func
         reactor = db.query(models.Reactor).filter(func.lower(models.Reactor.id) == base_asset_id).first()
         if reactor:
-            reactor.status = "active" if target_state else "inactive"
-            # It will be committed below along with the log
+            is_reactor = True
+            
+    if not (is_static or is_reactor):
+        raise ValueError(f"Geçersiz kesici anahtarı: {breaker_id}")
+
+    old_state = SCADA_BREAKER_STATES.get(breaker_id, False)
+    SCADA_BREAKER_STATES[breaker_id] = target_state
+    
+    if is_reactor and reactor:
+        reactor.status = "active" if target_state else "inactive"  # type: ignore
+        # It will be committed below along with the log
 
     # Manevrayı veritabanına kaydet (ManeuverLog)
     action_text = "Kesici Kapatıldı (Enerji Verildi)" if target_state else "Kesici Açıldı (Enerji Kesildi)"

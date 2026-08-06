@@ -925,8 +925,14 @@ def rollback_maneuver(db: Session, log_id: int):
     elif log.asset_type == "reactor":
         asset = db.query(models.Reactor).filter(models.Reactor.id == log.asset_id).first()
         if asset:
-            asset.current_transformer_id = log.source_trafo_id
-            asset.alternative_transformer_id = log.target_trafo_id
+            if log.source_trafo_id == log.target_trafo_id:
+                if str(asset.status) == "inactive":
+                    asset.status = "active"  # type: ignore
+                elif str(asset.status) == "active":
+                    asset.status = "inactive"  # type: ignore
+            else:
+                asset.current_transformer_id = log.source_trafo_id
+                asset.alternative_transformer_id = log.target_trafo_id
 
     log.status = "rolled_back"  # type: ignore
     log.rolled_back_at = datetime.now()  # type: ignore

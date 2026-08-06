@@ -49,6 +49,11 @@ const VeriModulu = (() => {
         '2026-07-15',
         '2026-08-30',
         '2026-10-29',
+        // 2027-2030 (Örnek uzatma)
+        '2027-01-01', '2027-04-23', '2027-05-01', '2027-05-19', '2027-07-15', '2027-08-30', '2027-10-29',
+        '2028-01-01', '2028-04-23', '2028-05-01', '2028-05-19', '2028-07-15', '2028-08-30', '2028-10-29',
+        '2029-01-01', '2029-04-23', '2029-05-01', '2029-05-19', '2029-07-15', '2029-08-30', '2029-10-29',
+        '2030-01-01', '2030-04-23', '2030-05-01', '2030-05-19', '2030-07-15', '2030-08-30', '2030-10-29',
     ];
 
     const TATIL_SET = new Set(TATIL_GUNLERI);
@@ -89,38 +94,7 @@ const VeriModulu = (() => {
         },
     ];
 
-    let _ekTrafolar = [];
-    try {
-        const kayitli = localStorage.getItem('spark_ek_trafolar');
-        if (kayitli) {
-            _ekTrafolar = JSON.parse(kayitli);
-            if (Array.isArray(_ekTrafolar)) {
-                // Hatalı/bozuk kayıtları temizle (Örn: string olarak kaydedilmiş olanlar)
-                const gecerliTrafolar = _ekTrafolar.filter(t => t && typeof t === 'object' && t.id);
-                gecerliTrafolar.forEach(t => TRAFOLAR.push(t));
-                
-                // Eğer bozuk kayıtlar varsa localStorage'ı temiziyle güncelle
-                if (gecerliTrafolar.length !== _ekTrafolar.length) {
-                    _ekTrafolar = gecerliTrafolar;
-                    localStorage.setItem('spark_ek_trafolar', JSON.stringify(_ekTrafolar));
-                }
-            }
-        }
-    } catch (e) {
-        console.warn('Ek trafolar yüklenemedi:', e);
-    }
 
-    function trafoEkle(trafoObj) {
-        if (!TRAFOLAR.find(t => t.id === trafoObj.id)) {
-            TRAFOLAR.push(trafoObj);
-            _ekTrafolar.push(trafoObj);
-            try {
-                localStorage.setItem('spark_ek_trafolar', JSON.stringify(_ekTrafolar));
-            } catch (e) {
-                console.error('Trafo kaydedilemedi:', e);
-            }
-        }
-    }
 
     // ─── Veri Aralığı Parametreleri ───
     const BASLANGIC_TARIH = '2025-01-01';
@@ -292,7 +266,7 @@ const VeriModulu = (() => {
         init,
         getTrafolar: () => TRAFOLAR,
         getTrafo: (id) => TRAFOLAR.find((t) => t.id === id),
-        trafoEkle,
+
         getTumVeriler: () => _tumVeriler,
         getTrafoVerileri: (trafoId) => _veriMap.get(trafoId) || [],
         getAylikVeriler: (trafoId, yil, ay) => {

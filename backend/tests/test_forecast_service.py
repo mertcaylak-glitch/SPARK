@@ -7,8 +7,6 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")
 
 from services.forecast_service import (
     forecast_xgboost,
-    forecast_random_forest,
-    forecast_regression,
     generate_predictions_from_model
 )
 
@@ -30,21 +28,6 @@ class TestForecastServiceNullHandling(unittest.TestCase):
         self.assertEqual(preds, [])
         self.assertEqual(conf, 0)
 
-    @patch("services.forecast_service._get_or_train_models")
-    def test_forecast_random_forest_handles_none_future_dates(self, mock_get_models):
-        mock_get_models.return_value = (None, None, None, 0, None, None, None, None, None, None, None)
-        mock_db = MagicMock()
-        preds, conf = forecast_random_forest(mock_db, "TR-01", steps=168)
-        self.assertEqual(preds, [])
-        self.assertEqual(conf, 0)
-
-    @patch("services.forecast_service._get_or_train_models")
-    def test_forecast_regression_handles_none_future_dates(self, mock_get_models):
-        mock_get_models.return_value = (None, None, None, 0, None, None, None, None, None, None, None)
-        mock_db = MagicMock()
-        preds, conf = forecast_regression(mock_db, "TR-01", steps=168)
-        self.assertEqual(preds, [])
-        self.assertEqual(conf, 0)
 
     def test_generate_predictions_from_model_handles_none_future_dates(self):
         res = generate_predictions_from_model(

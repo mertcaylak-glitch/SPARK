@@ -1,5 +1,5 @@
 from datetime import datetime
-from simulator import generate_measurement_values, get_historical_baseline
+from core.simulator import generate_measurement_values, get_historical_baseline
 from db import models
 
 def test_generate_measurement_values(db_session):
