@@ -25,13 +25,15 @@ const GrafikModulu = (() => {
 
     // ─── Sınır çizgisi annotation oluşturucu ───
     function sinirAnnotation(value, label, axis = 'y') {
+        let isHovered = false;
+        
         const config = {
             type: 'line',
             borderColor: '#ef4444',
             borderWidth: 2,
             borderDash: [6, 4],
             label: {
-                display: false,
+                display: (ctx) => isHovered,
                 content: label,
                 position: 'end',
                 backgroundColor: 'rgba(229, 57, 53, 0.85)',
@@ -40,6 +42,14 @@ const GrafikModulu = (() => {
                 padding: { x: 6, y: 3 },
                 borderRadius: 4,
             },
+            enter(ctx) {
+                isHovered = true;
+                ctx.chart.update();
+            },
+            leave(ctx) {
+                isHovered = false;
+                ctx.chart.update();
+            }
         };
 
         if (axis === 'y') {
@@ -57,7 +67,7 @@ const GrafikModulu = (() => {
     // 1. Dashboard — Yatay Bar Chart
     //    Tüm trafoların kapasitif oranları
     // ═══════════════════════════════════════════
-    function createDashboardBarChart(canvasId, trafoOzetleri) {
+    function createDashboardBarChart(canvasId, trafoOzetleri, type = 'kapasitif') {
         destroyChart(canvasId);
         const ctx = document.getElementById(canvasId)?.getContext('2d');
         if (!ctx) return;
@@ -120,16 +130,19 @@ const GrafikModulu = (() => {
             return parts.length > 1 ? `${parts[0]} (${parts[1]})` : d.trafo.adi;
         });
         const values = trafoOzetleri.map(
-            (d) => d.ozet?.kapasitifOran || 0
+            (d) => type === 'kapasitif' ? (d.ozet?.kapasitifOran || 0) : (d.ozet?.enduktifOran || 0)
         );
         const tahminValues = trafoOzetleri.map(
-            (d) => d.tahminOzet?.kapasitifOran !== undefined ? d.tahminOzet.kapasitifOran : null
+            (d) => {
+                if (type === 'kapasitif') return d.tahminOzet?.kapasitifOran !== undefined ? d.tahminOzet.kapasitifOran : null;
+                return d.tahminOzet?.enduktifOran !== undefined ? d.tahminOzet.enduktifOran : null;
+            }
         );
         const hasTahmin = tahminValues.some(v => v !== null);
 
         const isLight = document.body.getAttribute('data-theme') === 'light';
         const colors = values.map((v) => {
-            const risk = HesaplamaModulu.riskSeviyesiBelirle(v, 'kapasitif');
+            const risk = HesaplamaModulu.riskSeviyesiBelirle(v, type);
             return risk.renk;
         });
 
@@ -240,6 +253,22 @@ const GrafikModulu = (() => {
                 datasets: sortedDatasets,
             },
             options: {
+                onClick: (e, elements) => {
+                    if (elements && elements.length > 0) {
+                        const dataIndex = elements[0].index;
+                        const trafoOzet = trafoOzetleri[dataIndex];
+                        if (trafoOzet && trafoOzet.trafo && trafoOzet.trafo.id) {
+                            if (typeof App !== 'undefined' && typeof App.navigateToTrafo === 'function') {
+                                App.navigateToTrafo(trafoOzet.trafo.id);
+                            } else if (typeof DashboardUI !== 'undefined' && typeof DashboardUI.toggleTrafoDetail === 'function') {
+                                DashboardUI.toggleTrafoDetail(trafoOzet.trafo.id);
+                            }
+                        }
+                    }
+                },
+                onHover: (e, elements, chart) => {
+                    chart.canvas.style.cursor = (elements && elements.length > 0) ? 'pointer' : 'default';
+                },
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
@@ -258,6 +287,24 @@ const GrafikModulu = (() => {
                         cornerRadius: 8,
                         padding: 12,
                         callbacks: {
+                            labelColor: function(context) {
+                                const isTahmin = context.dataset.label.includes('Tahmin');
+                                const isLightMode = document.body.getAttribute('data-theme') === 'light';
+                                const baseColor = (typeof colors !== 'undefined' && colors[context.dataIndex]) ? colors[context.dataIndex] : '#F97316';
+                                
+                                let finalColor = baseColor;
+                                if (isTahmin) {
+                                    finalColor += (isLightMode ? 'E6' : 'FF'); // Tahmin hover rengi (koyu)
+                                } else {
+                                    finalColor += (isLightMode ? '40' : '33'); // Mevcut hover rengi (soluk)
+                                }
+                                
+                                return {
+                                    borderColor: 'transparent',
+                                    backgroundColor: finalColor,
+                                    borderWidth: 0,
+                                };
+                            },
                             label: (item) => {
                                 const dsLabel = item.dataset.label || '';
                                 return `${dsLabel}: %${item.parsed.x.toFixed(2)}`;
@@ -266,7 +313,7 @@ const GrafikModulu = (() => {
                     },
                     annotation: {
                         annotations: {
-                            limitLine: sinirAnnotation(15, '%15 Sınır', 'x'),
+                            limitLine: sinirAnnotation(type === 'kapasitif' ? 15 : 20, type === 'kapasitif' ? '%15 Sınır' : '%20 Sınır', 'x'),
                         },
                     },
                 },
@@ -274,7 +321,7 @@ const GrafikModulu = (() => {
                     x: {
                         beginAtZero: true,
                         max: dynamicMax,
-                        grid: { color: 'rgba(148, 163, 184, 0.06)' },
+                        grid: { color: 'rgba(148, 163, 184, 0.15)' },
                         ticks: { callback: (v) => `%${v}` },
                     },
                     y: {
@@ -447,11 +494,11 @@ const GrafikModulu = (() => {
                 backgroundColor: 'rgba(30, 136, 229, 0.1)',
                 fill: true,
                 tension: 0.35,
-                pointRadius: 3,
-                pointHoverRadius: 6,
+                pointRadius: isHourly ? 0 : 2,
+                pointHoverRadius: isHourly ? 4 : 5,
                 pointBackgroundColor: '#1E88E5',
-                pointBorderColor: '#1e293b',
-                pointBorderWidth: 2,
+                pointBorderColor: '#1E88E5',
+                pointBorderWidth: isHourly ? 2 : 1.5,
                 borderWidth: 2.5,
             },
         ];
@@ -523,11 +570,11 @@ const GrafikModulu = (() => {
                 fill: true,
                 borderDash: [6, 4],
                 tension: 0.35,
-                pointRadius: 4,
-                pointHoverRadius: 7,
+                pointRadius: isHourly ? 0 : 2.5,
+                pointHoverRadius: isHourly ? 5 : 6,
                 pointBackgroundColor: '#FB8C00',
-                pointBorderColor: '#1e293b',
-                pointBorderWidth: 2,
+                pointBorderColor: '#FB8C00',
+                pointBorderWidth: isHourly ? 2 : 1.5,
                 borderWidth: 2.8,
             });
         }
@@ -585,7 +632,7 @@ const GrafikModulu = (() => {
                 },
                 scales: {
                     x: {
-                        grid: { color: 'rgba(148, 163, 184, 0.06)' },
+                        grid: { color: 'rgba(148, 163, 184, 0.15)' },
                         title: {
                             display: true,
                             text: 'Gün',
@@ -594,7 +641,7 @@ const GrafikModulu = (() => {
                         },
                     },
                     y: {
-                        grid: { color: 'rgba(148, 163, 184, 0.06)' },
+                        grid: { color: 'rgba(148, 163, 184, 0.15)' },
                         suggestedMin: Math.max(0, Math.floor((minV - pad) * 10) / 10),
                         suggestedMax: Math.max(Math.ceil((maxV + pad) * 10) / 10, sinir + 2),
                         title: {
@@ -777,7 +824,7 @@ const GrafikModulu = (() => {
                 scales: {
                     x: {
                         stacked: true,
-                        grid: { color: 'rgba(148, 163, 184, 0.06)' },
+                        grid: { color: 'rgba(148, 163, 184, 0.15)' },
                         title: {
                             display: true,
                             text: 'Gün',
@@ -788,7 +835,7 @@ const GrafikModulu = (() => {
                     y: {
                         stacked: true,
                         beginAtZero: true,
-                        grid: { color: 'rgba(148, 163, 184, 0.06)' },
+                        grid: { color: 'rgba(148, 163, 184, 0.15)' },
                         suggestedMax: Math.max(Math.ceil((maxV + pad) * 10) / 10, sinir + 3),
                         title: {
                             display: true,
@@ -836,7 +883,7 @@ const GrafikModulu = (() => {
                         fill: true,
                         tension: 0.35,
                         borderWidth: 2.5,
-                        pointRadius: 2.5,
+                        pointRadius: 1.5,
                     },
                     {
                         label: 'Müdahale Sonrası İyileşmiş (%)',
@@ -846,7 +893,7 @@ const GrafikModulu = (() => {
                         fill: true,
                         tension: 0.35,
                         borderWidth: 3,
-                        pointRadius: 3,
+                        pointRadius: 2,
                     },
                 ],
             },
@@ -879,11 +926,11 @@ const GrafikModulu = (() => {
                 },
                 scales: {
                     x: {
-                        grid: { color: 'rgba(148, 163, 184, 0.06)' },
+                        grid: { color: 'rgba(148, 163, 184, 0.15)' },
                         title: { display: true, text: 'Gün', color: '#94a3b8' },
                     },
                     y: {
-                        grid: { color: 'rgba(148, 163, 184, 0.06)' },
+                        grid: { color: 'rgba(148, 163, 184, 0.15)' },
                         suggestedMin: Math.max(0, Math.floor((minVal - pad) * 10) / 10),
                         suggestedMax: Math.max(Math.ceil((maxVal + pad) * 10) / 10, sinir + 2),
                         ticks: { callback: (v) => `%${v}` },
@@ -895,7 +942,7 @@ const GrafikModulu = (() => {
 
     function updateTheme(isLight) {
         const textColor = isLight ? '#334155' : '#94a3b8';
-        const gridColor = isLight ? 'rgba(15, 23, 42, 0.08)' : 'rgba(148, 163, 184, 0.08)';
+        const gridColor = isLight ? 'rgba(15, 23, 42, 0.15)' : 'rgba(148, 163, 184, 0.15)';
         const tooltipBg = isLight ? 'rgba(255, 255, 255, 0.95)' : 'rgba(15, 23, 42, 0.95)';
         const tooltipBorder = isLight ? 'rgba(15, 23, 42, 0.15)' : 'rgba(148, 163, 184, 0.2)';
         const tooltipText = isLight ? '#0f172a' : '#fff';

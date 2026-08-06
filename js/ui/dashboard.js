@@ -5,6 +5,8 @@ const DashboardUI = (() => {
     'use strict';
 
     const _dashboardCache = new Map();
+    let _chartType = 'kapasitif';
+    let _currentFilter = 'all';
 
     async function renderForecastBanner(ozetler) {
         const state = App.getState();
@@ -42,8 +44,10 @@ const DashboardUI = (() => {
 
         let toplamTahminAktif = 0;
         let toplamTahminKapasitif = 0;
+        let toplamTahminEnduktif = 0;
         let toplamMevcutAktif = 0;
         let toplamMevcutKapasitif = 0;
+        let toplamMevcutEnduktif = 0;
         let riskliTahminTrafolar = [];
         let dikkatTahminTrafolar = [];
 
@@ -51,10 +55,12 @@ const DashboardUI = (() => {
             if (ozet) {
                 toplamMevcutAktif += ozet.toplamAktif;
                 toplamMevcutKapasitif += ozet.toplamKapasitif;
+                toplamMevcutEnduktif += ozet.toplamEnduktif || 0;
             }
             if (tahminOzet) {
                 toplamTahminAktif += tahminOzet.toplamAktif;
                 toplamTahminKapasitif += tahminOzet.toplamKapasitif;
+                toplamTahminEnduktif += tahminOzet.toplamEnduktif || 0;
                 
                 const isKapRisk = tahminOzet.kapasitifOran >= (HesaplamaModulu.SINIRLAR?.kapasitif || 15);
                 const isEndRisk = (tahminOzet.enduktifOran || 0) >= (HesaplamaModulu.SINIRLAR?.enduktif || 20);
@@ -71,6 +77,8 @@ const DashboardUI = (() => {
 
         const genelTahminOran = HesaplamaModulu.oranHesapla(toplamTahminKapasitif, toplamTahminAktif);
         const genelMevcutOran = HesaplamaModulu.oranHesapla(toplamMevcutKapasitif, toplamMevcutAktif);
+        const genelTahminEndOran = HesaplamaModulu.oranHesapla(toplamTahminEnduktif, toplamTahminAktif);
+        const genelMevcutEndOran = HesaplamaModulu.oranHesapla(toplamMevcutEnduktif, toplamMevcutAktif);
 
         let bannerHTML = '';
         if (riskliTahminTrafolar.length > 0) {
@@ -83,23 +91,30 @@ const DashboardUI = (() => {
 
             bannerHTML = `
                 <div class="forecast-alert-card alert-card-riskli collapsible collapsed" onclick="this.classList.toggle('collapsed'); this.parentElement.classList.toggle('expanded');">
-                    <div class="forecast-alert-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+                    <div class="forecast-alert-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></div>
+                    <span class="collapsed-text-label">Şebeke Durumu</span>
                     <div class="forecast-alert-details" onclick="event.stopPropagation()">
                         <div class="forecast-alert-left">
                             <div class="forecast-alert-text">
                                 <h3>AY SONU PROJEKSİYONU & RİSK BİLDİRİMİ <span class="badge badge-tehlikeli" style="margin-left:8px;">Ceza Sınırı Aşım Riski!</span></h3>
                                 <p>
-                                    Mevcut kullanım trendi devam ederse ay sonunda reaktif güç ceza sınırlarının aşılması beklenmektedir. (Tesis Kapasitif Tahmini: %${HesaplamaModulu.formatSayi(genelTahminOran)}, Mevcut: %${HesaplamaModulu.formatSayi(genelMevcutOran)}).
+                                    Mevcut kullanım trendi devam ederse ay sonunda reaktif güç ceza sınırlarının aşılması beklenmektedir. (Tesis Kapasitif Tahmini: %${HesaplamaModulu.formatSayi(genelTahminOran)}, Endüktif Tahmini: %${HesaplamaModulu.formatSayi(genelTahminEndOran)}).
                                     <br><strong>${riskliTahminTrafolar.length} adet trafoda (${trafoListText})</strong> ay sonuna kadar yasal ceza sınırının aşılması beklenmektedir! Acil müdahale (şönt reaktör/kondansatör veya yük transferi) önerilir.
                                 </p>
                             </div>
                         </div>
-                        <div class="forecast-alert-right">
-                            <div class="forecast-alert-metric-box">
-                                <div class="forecast-alert-metric-label">Ay Sonu Kapasitif Tahmin</div>
-                                <div class="forecast-alert-metric-val" style="color: var(--color-danger)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
+                        <div class="forecast-alert-right" style="display: flex; flex-direction: column; gap: 8px;">
+                            <div style="display: flex; gap: 8px;">
+                                <div class="forecast-alert-metric-box" style="flex: 1; padding: 10px; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-color);">
+                                    <div class="forecast-alert-metric-label" style="font-size: 11px;">Kapasitif Tahmin</div>
+                                    <div class="forecast-alert-metric-val" style="color: ${genelTahminOran >= (HesaplamaModulu.SINIRLAR?.kapasitif || 15) ? 'var(--color-danger)' : 'var(--text-primary)'}; font-size: 16px;">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
+                                </div>
+                                <div class="forecast-alert-metric-box" style="flex: 1; padding: 10px; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-color);">
+                                    <div class="forecast-alert-metric-label" style="font-size: 11px;">Endüktif Tahmin</div>
+                                    <div class="forecast-alert-metric-val" style="color: ${genelTahminEndOran >= (HesaplamaModulu.SINIRLAR?.enduktif || 20) ? 'var(--color-danger)' : 'var(--text-primary)'}; font-size: 16px;">%${HesaplamaModulu.formatSayi(genelTahminEndOran)}</div>
+                                </div>
                             </div>
-                            <button class="forecast-alert-btn btn btn-primary" onclick="event.stopPropagation(); App.navigateToTrafo('${App.escapeHTML(riskliTahminTrafolar[0].trafo.id)}')" style="background: var(--color-danger); border: none;">
+                            <button class="forecast-alert-btn btn btn-primary" onclick="event.stopPropagation(); App.navigateToTrafo('${App.escapeHTML(riskliTahminTrafolar[0].trafo.id)}')" style="background: var(--color-danger); border: none; width: 100%;">
                                 Riskli Trafoyu İncele
                             </button>
                         </div>
@@ -116,7 +131,8 @@ const DashboardUI = (() => {
 
             bannerHTML = `
                 <div class="forecast-alert-card alert-card-dikkat collapsible collapsed" onclick="this.classList.toggle('collapsed'); this.parentElement.classList.toggle('expanded');">
-                    <div class="forecast-alert-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>
+                    <div class="forecast-alert-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></div>
+                    <span class="collapsed-text-label">Şebeke Durumu</span>
                     <div class="forecast-alert-details" onclick="event.stopPropagation()">
                         <div class="forecast-alert-left">
                             <div class="forecast-alert-text">
@@ -127,10 +143,16 @@ const DashboardUI = (() => {
                                 </p>
                             </div>
                         </div>
-                        <div class="forecast-alert-right">
-                            <div class="forecast-alert-metric-box">
-                                <div class="forecast-alert-metric-label">Ay Sonu Kapasitif Tahmin</div>
-                                <div class="forecast-alert-metric-val" style="color: var(--color-warning)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
+                        <div class="forecast-alert-right" style="display: flex; flex-direction: column; gap: 8px;">
+                            <div style="display: flex; gap: 8px;">
+                                <div class="forecast-alert-metric-box" style="flex: 1; padding: 10px; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-color);">
+                                    <div class="forecast-alert-metric-label" style="font-size: 11px;">Kapasitif Tahmin</div>
+                                    <div class="forecast-alert-metric-val" style="color: ${genelTahminOran >= (HesaplamaModulu.SINIRLAR?.kapasitifUyari || 12) ? 'var(--color-warning)' : 'var(--text-primary)'}; font-size: 16px;">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
+                                </div>
+                                <div class="forecast-alert-metric-box" style="flex: 1; padding: 10px; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-color);">
+                                    <div class="forecast-alert-metric-label" style="font-size: 11px;">Endüktif Tahmin</div>
+                                    <div class="forecast-alert-metric-val" style="color: ${genelTahminEndOran >= (HesaplamaModulu.SINIRLAR?.enduktifUyari || 16) ? 'var(--color-warning)' : 'var(--text-primary)'}; font-size: 16px;">%${HesaplamaModulu.formatSayi(genelTahminEndOran)}</div>
+                                </div>
                             </div>
                             <button class="forecast-alert-btn btn btn-outline" onclick="event.stopPropagation(); App.navigateToTrafo('${App.escapeHTML(dikkatTahminTrafolar[0].trafo.id)}')">
                                 Detayları Gör
@@ -142,21 +164,28 @@ const DashboardUI = (() => {
         } else {
             bannerHTML = `
                 <div class="forecast-alert-card alert-card-guvenli collapsible collapsed" onclick="this.classList.toggle('collapsed'); this.parentElement.classList.toggle('expanded');">
-                    <div class="forecast-alert-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg></div>
+                    <div class="forecast-alert-icon"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line><polyline points="10 9 9 9 8 9"></polyline></svg></div>
+                    <span class="collapsed-text-label">Şebeke Durumu</span>
                     <div class="forecast-alert-details" onclick="event.stopPropagation()">
                         <div class="forecast-alert-left">
                             <div class="forecast-alert-text">
                                 <h3>AY SONU PROJEKSİYONU & RİSK BİLDİRİMİ <span class="badge badge-guvenli" style="margin-left:8px;">Tamamen Güvenli</span></h3>
                                 <p>
-                                    Harika! Tesis geneli ay sonu tahmini reaktif güç oranları güvenli yeşil bölgede öngörülmektedir (Kapasitif Tahmin: %${HesaplamaModulu.formatSayi(genelTahminOran)}, Mevcut: %${HesaplamaModulu.formatSayi(genelMevcutOran)}).
+                                    Harika! Tesis geneli ay sonu tahmini reaktif güç oranları güvenli yeşil bölgede öngörülmektedir (Kapasitif Tahmin: %${HesaplamaModulu.formatSayi(genelTahminOran)}, Endüktif Tahmini: %${HesaplamaModulu.formatSayi(genelTahminEndOran)}).
                                     <br>Tüm trafoların ay sonuna kadar ceza sınırlarının ve uyarı eşiklerinin çok altında kalarak konforlu bir şekilde ayı tamamlaması bekleniyor.
                                 </p>
                             </div>
                         </div>
-                        <div class="forecast-alert-right">
-                            <div class="forecast-alert-metric-box">
-                                <div class="forecast-alert-metric-label">Ay Sonu Tahmini</div>
-                                <div class="forecast-alert-metric-val" style="color: var(--color-success)">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
+                        <div class="forecast-alert-right" style="display: flex; flex-direction: column; gap: 8px;">
+                            <div style="display: flex; gap: 8px;">
+                                <div class="forecast-alert-metric-box" style="flex: 1; padding: 10px; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-color);">
+                                    <div class="forecast-alert-metric-label" style="font-size: 11px;">Kapasitif Tahmin</div>
+                                    <div class="forecast-alert-metric-val" style="color: var(--color-success); font-size: 16px;">%${HesaplamaModulu.formatSayi(genelTahminOran)}</div>
+                                </div>
+                                <div class="forecast-alert-metric-box" style="flex: 1; padding: 10px; background: var(--bg-body); border-radius: 8px; border: 1px solid var(--border-color);">
+                                    <div class="forecast-alert-metric-label" style="font-size: 11px;">Endüktif Tahmin</div>
+                                    <div class="forecast-alert-metric-val" style="color: var(--color-success); font-size: 16px;">%${HesaplamaModulu.formatSayi(genelTahminEndOran)}</div>
+                                </div>
                             </div>
                             <button class="forecast-alert-btn btn btn-outline" onclick="event.stopPropagation(); App.navigate('tahmin')">
                                 Tahmin Detayları
@@ -204,8 +233,9 @@ const DashboardUI = (() => {
                 <div class="collapsible-alert-wrapper">
                     <div class="alert maneuver-alert collapsible collapsed" onclick="toggleManeuverAlert(this)">
                         <div class="maneuver-icon-container">
-                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--color-primary)" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"></path></svg>
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="18" r="3"></circle><circle cx="6" cy="6" r="3"></circle><path d="M13 6h3a2 2 0 0 1 2 2v7"></path><line x1="6" y1="9" x2="6" y2="21"></line></svg>
                         </div>
+                        <span class="collapsed-text-label">Manevra Önerisi</span>
                         <div class="maneuver-details-wrapper" onclick="event.stopPropagation()">
                             <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
                                 <div style="display: flex; align-items: center; gap: 8px;">
@@ -305,12 +335,29 @@ const DashboardUI = (() => {
     }
 
     function updateDashboardUI(ozetler) {
+        const siralamaOnceligi = ['Ümraniye', 'Kartal'];
+        ozetler.sort((a, b) => {
+            const aName = a.trafo.adi || '';
+            const bName = b.trafo.adi || '';
+            let aIndex = siralamaOnceligi.findIndex(prefix => aName.includes(prefix));
+            let bIndex = siralamaOnceligi.findIndex(prefix => bName.includes(prefix));
+            if (aIndex === -1) aIndex = 999;
+            if (bIndex === -1) bIndex = 999;
+            
+            if (aIndex !== bIndex) return aIndex - bIndex;
+            return aName.localeCompare(bName);
+        });
+
         const state = App.getState();
         const AY_ADLARI = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
         let guvenliSayisi = 0, dikkatSayisi = 0, riskliSayisi = 0, tehlikeliSayisi = 0;
         let toplamAktif = 0, toplamEnduktif = 0, toplamKapasitif = 0;
+        
+        let guvenliTrafolar = [];
+        let dikkatTrafolar = [];
+        let riskliTrafolar = [];
 
-        ozetler.forEach(({ ozet }) => {
+        ozetler.forEach(({ trafo, ozet }) => {
             if (!ozet) return;
             toplamAktif     += ozet.toplamAktif;
             toplamEnduktif  += ozet.toplamEnduktif;
@@ -320,50 +367,71 @@ const DashboardUI = (() => {
             const kapSev = ozet.kapasitifRisk ? ozet.kapasitifRisk.seviye : 'guvenli';
             const endSev = ozet.enduktifRisk  ? ozet.enduktifRisk.seviye  : 'guvenli';
             const sev = (_RISK_SIRA[kapSev] >= _RISK_SIRA[endSev]) ? kapSev : endSev;
+            
+            const kapOranText = `%${HesaplamaModulu.formatSayi(ozet.kapasitifOran)}`;
+            const endOranText = `%${HesaplamaModulu.formatSayi(ozet.enduktifOran)}`;
+            const tText = `${trafo.adi} (Kap: ${kapOranText}, End: ${endOranText})`;
 
-            if (sev === 'guvenli' || sev === 'normal') guvenliSayisi++;
-            else if (sev === 'dikkat') dikkatSayisi++;
-            else if (sev === 'riskli') riskliSayisi++;
-            else tehlikeliSayisi++;
+            if (sev === 'guvenli' || sev === 'normal') {
+                guvenliSayisi++;
+                guvenliTrafolar.push(tText);
+            }
+            else if (sev === 'dikkat') {
+                dikkatSayisi++;
+                dikkatTrafolar.push(tText);
+            }
+            else {
+                riskliSayisi++;
+                tehlikeliSayisi++;
+                riskliTrafolar.push(tText);
+            }
         });
+        
+        const guvenliTitle = guvenliTrafolar.length > 0 ? "Güvenli Trafolar:\n" + guvenliTrafolar.join('\n') : "Güvenli trafo yok";
+        const dikkatTitle = dikkatTrafolar.length > 0 ? "Dikkat Durumundaki Trafolar:\n" + dikkatTrafolar.join('\n') : "Dikkat durumunda trafo yok";
+        const riskliTitle = riskliTrafolar.length > 0 ? "Riskli Trafolar:\n" + riskliTrafolar.join('\n') : "Riskli trafo yok";
 
         document.getElementById('summary-cards').innerHTML = `
-            <div class="summary-card card-total">
-                <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg></div>
+            <div class="summary-card card-total custom-tooltip-container" style="cursor: pointer;" onclick="DashboardUI.filterTrafos('all')">
+                <div class="custom-tooltip">Tüm Trafoları Göster</div>
+                <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="5"></circle><circle cx="15" cy="12" r="5"></circle><line x1="1" y1="12" x2="4" y2="12"></line><line x1="20" y1="12" x2="23" y2="12"></line></svg></div>
                 <div class="card-content">
                     <div class="card-value">${ozetler.length}</div>
                     <div class="card-label">Toplam Trafo</div>
                 </div>
             </div>
-            <div class="summary-card card-safe">
+            <div class="summary-card card-safe custom-tooltip-container" style="cursor: pointer;" onclick="DashboardUI.filterTrafos('guvenli')">
+                <div class="custom-tooltip">${App.escapeHTML(guvenliTitle)}</div>
                 <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg></div>
                 <div class="card-content">
                     <div class="card-value">${guvenliSayisi}</div>
                     <div class="card-label">Güvenli / Normal</div>
                 </div>
             </div>
-            <div class="summary-card card-warning">
+            <div class="summary-card card-warning custom-tooltip-container" style="cursor: pointer;" onclick="DashboardUI.filterTrafos('dikkat')">
+                <div class="custom-tooltip">${App.escapeHTML(dikkatTitle)}</div>
                 <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg></div>
                 <div class="card-content">
                     <div class="card-value">${dikkatSayisi}</div>
                     <div class="card-label">Dikkat Durumu</div>
                 </div>
             </div>
-            <div class="summary-card card-danger">
+            <div class="summary-card card-danger custom-tooltip-container" style="cursor: pointer;" onclick="DashboardUI.filterTrafos('riskli')">
+                <div class="custom-tooltip">${App.escapeHTML(riskliTitle)}</div>
                 <div class="card-icon"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg></div>
                 <div class="card-content">
-                    <div class="card-value">${riskliSayisi + tehlikeliSayisi}</div>
+                    <div class="card-value">${riskliSayisi}</div>
                     <div class="card-label">Ceza Riski</div>
                 </div>
             </div>
         `;
 
         if (typeof GrafikModulu !== 'undefined') {
-            GrafikModulu.createDashboardBarChart('chart-dashboard-bar', ozetler);
+            GrafikModulu.createDashboardBarChart('chart-dashboard-bar', ozetler, _chartType);
         }
 
         const ayBadge = document.getElementById('dashboard-ay-badge');
-        if (ayBadge) ayBadge.textContent = `${AY_ADLARI[state.selectedAy - 1]} ${state.selectedYil}`;
+        if (ayBadge) ayBadge.style.display = 'none'; // Kullanıcı isteği: tarih ibaresi kaldırıldı
 
         const gridEl = document.getElementById('trafo-grid');
         if (!gridEl) return;
@@ -385,9 +453,15 @@ const DashboardUI = (() => {
 
             const ratio = Math.min((ozet.kapasitifOran / 20) * 100, 100);
             const limitPos = (15 / 20) * 100;
+            
+            const endRatio = Math.min((ozet.enduktifOran / 25) * 100, 100);
+            const endLimitPos = (20 / 25) * 100;
 
             const tOran = tahminOzet ? tahminOzet.kapasitifOran : ozet.kapasitifOran;
-            const tRisk = tahminOzet ? tahminOzet.kapasitifRisk : risk;
+            const tRisk = tahminOzet && tahminOzet.kapasitifRisk ? tahminOzet.kapasitifRisk : HesaplamaModulu.riskSeviyesiBelirle(tOran || 0, 'kapasitif');
+            
+            const tEndOran = tahminOzet ? tahminOzet.enduktifOran : ozet.enduktifOran;
+            const tEndRisk = tahminOzet && tahminOzet.enduktifRisk ? tahminOzet.enduktifRisk : HesaplamaModulu.riskSeviyesiBelirle(tEndOran || 0, 'enduktif');
 
             return `
                 <div class="trafo-card risk-${risk.seviye}" id="trafo-card-${trafo.id}" style="animation-delay: ${idx * 0.06}s"
@@ -402,7 +476,7 @@ const DashboardUI = (() => {
                             </div>
                             <span class="badge badge-${risk.seviye}" style="flex-shrink: 0; white-space: nowrap;">${risk.ikon || ''} ${risk.etiket || risk.seviye.toUpperCase()}</span>
                         </div>
-                        <div class="trafo-card-stats">
+                        <div class="trafo-card-stats" style="gap: 12px;">
                             <div class="trafo-stat">
                                 <span class="trafo-stat-label">Kapasitif Oran</span>
                                 <span class="trafo-stat-value highlight" style="color:${kapRisk.renk || 'var(--text)'}">
@@ -410,7 +484,7 @@ const DashboardUI = (() => {
                                 </span>
                             </div>
                             <div class="trafo-stat">
-                                <span class="trafo-stat-label">Ay Sonu Tahmini</span>
+                                <span class="trafo-stat-label">Kap. Tahmini</span>
                                 <span class="trafo-stat-value highlight" style="color:${tRisk.renk || 'var(--text)'}">
                                     %${HesaplamaModulu.formatSayi(tOran)}
                                 </span>
@@ -422,16 +496,26 @@ const DashboardUI = (() => {
                                     ${(_RISK_SIRA[endRisk.seviye] >= 2) ? `<span class="badge badge-${endRisk.seviye}" style="font-size:9px;margin-left:4px;">${endRisk.ikon}</span>` : ''}
                                 </span>
                             </div>
+                            <div class="trafo-stat">
+                                <span class="trafo-stat-label">End. Tahmini</span>
+                                <span class="trafo-stat-value highlight" style="color:${tEndRisk.renk || 'var(--text)'}">
+                                    %${HesaplamaModulu.formatSayi(tEndOran)}
+                                </span>
+                            </div>
                             <div class="trafo-stat" style="margin-right: 15px;">
                                 <span class="trafo-stat-label">Aktif Enerji</span>
                                 <span class="trafo-stat-value">${HesaplamaModulu.formatEnerji(ozet.toplamAktif)}</span>
                             </div>
                         </div>
 
-                        <div class="ratio-meter">
-                            <div class="ratio-meter-bar">
-                                <div class="ratio-meter-fill" style="width:${ratio}%; background:${risk.renk || 'var(--color-primary)'}"></div>
+                        <div class="ratio-meter" style="display: flex; flex-direction: column; justify-content: center; gap: 15px; min-width: 120px; width: 100%;">
+                            <div class="ratio-meter-bar" title="Kapasitif Oran: %${HesaplamaModulu.formatSayi(ozet.kapasitifOran)}">
+                                <div class="ratio-meter-fill" style="width:${ratio}%; background:${kapRisk.renk || 'var(--color-primary)'}"></div>
                                 <div class="ratio-meter-limit" style="left:${limitPos}%" data-label="%15"></div>
+                            </div>
+                            <div class="ratio-meter-bar" title="Endüktif Oran: %${HesaplamaModulu.formatSayi(ozet.enduktifOran)}">
+                                <div class="ratio-meter-fill" style="width:${endRatio}%; background:${endRisk.renk || 'var(--color-primary)'}"></div>
+                                <div class="ratio-meter-limit limit-bottom" style="left:${endLimitPos}%" data-label="%20"></div>
                             </div>
                         </div>
 
@@ -454,11 +538,59 @@ const DashboardUI = (() => {
                     DashboardUI.toggleTrafoDetail(id);
                 }
             });
+            // Apply current filter after generating cards
+            filterTrafos(_currentFilter, false);
         }, 50);
     }
 
     function clearCache() {
         _dashboardCache.clear();
+        // Apply current filter after generating cards
+        filterTrafos(_currentFilter, false);
+    }
+    
+    function filterTrafos(status, scrollToGrid = true) {
+        _currentFilter = status;
+        const gridEl = document.getElementById('trafo-grid');
+        if (!gridEl) return;
+        
+        const cards = gridEl.querySelectorAll('.trafo-card');
+        cards.forEach(card => {
+            if (status === 'all') {
+                card.style.display = 'flex'; // It's a flex container
+            } else if (status === 'guvenli' && (card.classList.contains('risk-guvenli') || card.classList.contains('risk-normal'))) {
+                card.style.display = 'flex';
+            } else if (status === 'dikkat' && card.classList.contains('risk-dikkat')) {
+                card.style.display = 'flex';
+            } else if (status === 'riskli' && (card.classList.contains('risk-riskli') || card.classList.contains('risk-tehlikeli'))) {
+                card.style.display = 'flex';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+        
+        // Update filter button styles if they exist
+        ['all', 'guvenli', 'dikkat', 'riskli'].forEach(key => {
+            const btn = document.getElementById(`btn-filter-${key}`);
+            if (btn) {
+                if (key === status) {
+                    btn.classList.add('btn-primary');
+                    btn.classList.remove('btn-outline');
+                } else {
+                    btn.classList.add('btn-outline');
+                    btn.classList.remove('btn-primary');
+                }
+            }
+        });
+        
+        if (scrollToGrid) {
+            const header = document.querySelector('.section-header h2');
+            if (header) {
+                header.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            } else {
+                gridEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        }
     }
 
     async function toggleTrafoDetail(trafoId) {
@@ -488,13 +620,40 @@ const DashboardUI = (() => {
         }
     }
 
+    function toggleChartType(type) {
+        _chartType = type;
+        const state = App.getState();
+        const cacheKey = `${state.selectedYil}_${state.selectedAy}_${state.selectedYontem}`;
+        const ozetler = _dashboardCache.get(cacheKey) || state.lastOzetler;
+        
+        if (ozetler && typeof GrafikModulu !== 'undefined') {
+            GrafikModulu.createDashboardBarChart('chart-dashboard-bar', ozetler, _chartType);
+        }
+        
+        const btnKap = document.getElementById('btn-chart-kapasitif');
+        const btnEnd = document.getElementById('btn-chart-enduktif');
+        const title = document.getElementById('dashboard-chart-title');
+        
+        if (type === 'kapasitif') {
+            if (btnKap) { btnKap.classList.remove('btn-outline'); btnKap.classList.add('btn-primary'); }
+            if (btnEnd) { btnEnd.classList.remove('btn-primary'); btnEnd.classList.add('btn-outline'); }
+            if (title) title.innerText = 'Trafo Kapasitif Oranları';
+        } else {
+            if (btnEnd) { btnEnd.classList.remove('btn-outline'); btnEnd.classList.add('btn-primary'); }
+            if (btnKap) { btnKap.classList.remove('btn-primary'); btnKap.classList.add('btn-outline'); }
+            if (title) title.innerText = 'Trafo Endüktif Oranları';
+        }
+    }
+
     return {
         renderDashboard,
         renderForecastBanner,
         switchDashboardView,
         updateDashboardUI,
         clearCache,
-        toggleTrafoDetail
+        toggleTrafoDetail,
+        toggleChartType,
+        filterTrafos
     };
 })();
 

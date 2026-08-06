@@ -24,9 +24,7 @@ const ThemeManager = (() => {
         localStorage.setItem('spark_theme', themeName);
 
         const iconEl = document.getElementById('theme-icon');
-        const textEl = document.getElementById('theme-text');
         if (iconEl) iconEl.textContent = themeName === 'light' ? '🌙' : '☀️';
-        if (textEl) textEl.textContent = themeName === 'light' ? 'Koyu' : 'Açık';
 
         if (typeof GrafikModulu !== 'undefined' && GrafikModulu.updateTheme) {
             GrafikModulu.updateTheme(themeName === 'light');
