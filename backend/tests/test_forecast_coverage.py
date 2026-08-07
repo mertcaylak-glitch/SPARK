@@ -7,6 +7,32 @@ from services.forecast.engine import (
     _process_single_transformer_batch,
     run_weekly_batch_forecast
 )
+
+def test_cache_manager_clear_and_purge():
+    from services.forecast.cache_manager import (
+        clear_caches, _purge_expired_forecast_cache,
+        FORECAST_CACHE, TRAINED_MODELS_CACHE
+    )
+    import time
+    
+    FORECAST_CACHE.clear()
+    TRAINED_MODELS_CACHE.clear()
+    
+    FORECAST_CACHE["TRAFO1_123"] = (time.time() + 1000, "data")
+    TRAINED_MODELS_CACHE["TRAFO1_model"] = "model1"
+    
+    FORECAST_CACHE["TRAFO2_123"] = (time.time() - 4000, "data") # expired
+    TRAINED_MODELS_CACHE["TRAFO2_model"] = "model2"
+    
+    # purge expired (TRAFO2 should be deleted)
+    _purge_expired_forecast_cache()
+    assert "TRAFO2_123" not in FORECAST_CACHE
+    
+    # clear by ids
+    clear_caches(["TRAFO1"])
+    assert "TRAFO1_123" not in FORECAST_CACHE
+    assert "TRAFO1_model" not in TRAINED_MODELS_CACHE
+
 from db import models
 import datetime
 

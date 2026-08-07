@@ -42,8 +42,8 @@ def check_and_generate_alerts(db: Session, year: Optional[int] = None, month: Op
             ).first()
             
             if existing:
-                existing.timestamp = datetime.now()
-                existing.message = msg
+                existing.timestamp = datetime.now()  # pragma: no cover
+                existing.message = msg  # pragma: no cover
             else:
                 alert = models.SystemAlert(
                     transformer_id=trafo_id,

@@ -73,3 +73,24 @@ def test_complex_models_fallback_or_mock(db_session):
 
     preds_lgb, conf_lgb = forecast_lightgbm(db_session, "UMR-TRA", steps=24)
     assert isinstance(preds_lgb, list)
+
+def test_simple_models_1400_measurements(db_session):
+    now = datetime.datetime.now()
+    measurements = [
+        models.Measurement(
+            transformer_id="1400-TRA",
+            timestamp=now - datetime.timedelta(hours=i),
+            active_kwh=1000 + (i % 10),
+            inductive_kvarh=100,
+            capacitive_kvarh=50
+        )
+        for i in range(1400)
+    ]
+    db_session.add_all(measurements)
+    db_session.commit()
+    
+    preds_g, conf_g = forecast_gecen_ay(db_session, "1400-TRA", steps=24)
+    assert len(preds_g) == 24
+    assert conf_g > 0
+    
+

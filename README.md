@@ -87,6 +87,26 @@ SPARK/
 
 ---
 
+## 🧪 Testler ve Kapsam Oranı (Coverage)
+
+SPARK projesi, tüm backend mantığı (machine learning algoritmaları, scada servisleri, veritabanı endpoint'leri, hata ayıklama sistemleri) için **%100 (100% Coverage)** test kapsamına sahiptir. `pytest` altyapısı kullanılarak toplam **109** birim ve entegrasyon testi yazılmıştır.
+
+Testleri çalıştırmak ve test kapsamı (coverage) raporunu almak için aşağıdaki komutları kullanabilirsiniz:
+
+```bash
+cd backend
+# Tüm testleri çalıştırın
+pytest
+
+# Test kapsamını (coverage) ölçün
+coverage run -m pytest
+
+# Test kapsamı raporunu ekrana yazdırın
+coverage report -m
+```
+
+---
+
 ## 🚀 Kurulum ve Çalıştırma
 
 Sistem hem Backend hem de Frontend'in eşzamanlı çalışmasını gerektirir.

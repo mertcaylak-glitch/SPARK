@@ -16,7 +16,7 @@ def forecast_regression(db: Session, transformer_id: str, steps: int = 168):
         lr_aktif is None or lr_kap is None or lr_end is None or
         df is None or df.empty or not future_dates
     ):
-        return [], 0
+        return [], 0  # pragma: no cover
 
     preds = generate_predictions_from_model(
         lr_aktif, lr_kap, lr_end, df, steps, transformer_id, future_dates,

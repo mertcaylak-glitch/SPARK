@@ -189,3 +189,65 @@ def test_upload_excel_valid_and_branches(client, db_session):
     df_err.to_excel(b_err, index=False)
     res_err = client.post("/api/osos/upload-excel", files={"file": ("test.xlsx", b_err.getvalue(), "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")})
     assert res_err.status_code == 400
+
+def test_fetch_osos_measurements_with_T_format(client, db_session):
+    res = client.get("/api/osos/fetch?start_date=2026-08-01T10:00&end_date=2026-08-01T23:00")
+    assert res.status_code == 200
+    
+def test_upload_batch_new_insert(client, db_session):
+    t = models.Transformer(id="TRA-NEW-BATCH", name="New Trafo B", power_mva=10)
+    db_session.add(t)
+    db_session.commit()
+    
+    payload = [
+        {
+            "transformer_id": "TRA-NEW-BATCH",
+            "timestamp": "2026-08-02T10:00:00",
+            "active_kwh": 100,
+            "inductive_kvarh": 50,
+            "capacitive_kvarh": 20
+        }
+    ]
+    res = client.post("/api/osos/measurements/bulk", json=payload)
+    assert res.status_code == 200
+    assert "inserted" in res.json()["message"]
+
+def test_upload_batch_exception(client):
+    payload = [{"timestamp": "2026-08-02T10:00:00"}]
+    res = client.post("/api/osos/measurements/bulk", json=payload)
+    assert res.status_code == 422 
+
+def test_upload_csv_new_transformer(client, db_session):
+    import pandas as pd
+    import io
+    
+    import uuid
+    unique_name = f"YENI TRAFO {uuid.uuid4().hex[:6].upper()}"
+    df = pd.DataFrame({
+        "Tarih": ["2026-08-03 10:00:00", "2026-08-04 10:00:00"],
+        f"{unique_name} Aktif": [100, 300],
+        f"{unique_name} Reaktif": [50, 10]
+    })
+    
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, sheet_name=unique_name, index=False)
+    
+    output.seek(0)
+    
+    files = {'file': ('test.xlsx', output, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
+    res = client.post("/api/osos/upload-excel", files=files)
+    
+    assert res.status_code == 200
+    assert unique_name in res.json()["new_transformers"]
+
+def test_upload_csv_exception_400(client):
+    files = {'file': ('test.txt', b'not an excel', 'text/plain')}
+    res = client.post("/api/osos/upload-excel", files=files)
+    assert res.status_code == 400
+
+def test_upload_csv_exception_500(client):
+    # Valid filename but invalid excel content -> throws Exception -> 500
+    files = {'file': ('test.xlsx', b'not an excel', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}
+    res = client.post("/api/osos/upload-excel", files=files)
+    assert res.status_code == 500

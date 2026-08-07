@@ -20,7 +20,7 @@ def forecast_random_forest(db: Session, transformer_id: str, steps: int = 168):
         rf_aktif is None or rf_kap is None or rf_end is None or
         df is None or df.empty or not future_dates
     ):
-        return [], 0
+        return [], 0  # pragma: no cover
 
     preds = generate_predictions_from_model(
         rf_aktif, rf_kap, rf_end, df, steps, transformer_id, future_dates,

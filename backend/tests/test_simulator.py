@@ -52,6 +52,8 @@ def test_generate_hourly_data(db_session):
         db_session.commit()
 
     generate_hourly_data()
+    # Call it again to hit the "existing measurement" block
+    generate_hourly_data()
 
 def test_generate_historical_data(db_session):
     t = db_session.query(models.Transformer).filter_by(id="UMR-TRA").first()
@@ -60,4 +62,6 @@ def test_generate_historical_data(db_session):
         db_session.add(t)
         db_session.commit()
 
+    generate_historical_data(days=1)
+    # Call it again to hit the "existing measurement" block
     generate_historical_data(days=1)

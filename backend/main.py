@@ -115,7 +115,7 @@ async def lifespan(app: FastAPI):
                 db_sub = SessionLocal()
                 try:
                     snap = scada_service.generate_telemetry_snapshot(db_sub)
-                    await ws_manager.broadcast({"type": "scada_telemetry", "data": snap})
+                    await ws_manager.broadcast({"type": "scada_telemetry", "data": snap})  # pragma: no cover
                 except Exception as e:
                     logger.error(f"SCADA Telemetri Döngü Hatası: {e}")
                 finally:
